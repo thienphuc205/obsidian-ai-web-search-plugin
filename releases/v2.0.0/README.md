@@ -189,11 +189,19 @@ If you find this plugin helpful:
 
 ## 📋 Community Plugin Status
 
-**Current Status:** Under Official Review  
+**Current Status:** ✅ Successfully Submitted - Under Official Review  
 **Submission Date:** August 6, 2025  
 **Review PR:** [#7342](https://github.com/obsidianmd/obsidian-releases/pull/7342)  
+**Submission Verified:** All checklist items completed ✓  
 **Expected Timeline:** 1-4 weeks for Obsidian team review  
 **Track Progress:** Watch the PR for updates and approval status
+
+### Review Details
+- **Plugin ID:** `ai-web-search`
+- **Repository:** [thienphuc205/obsidian-ai-web-search-plugin](https://github.com/thienphuc205/obsidian-ai-web-search-plugin)
+- **Release:** [v2.0.0](https://github.com/thienphuc205/obsidian-ai-web-search-plugin/releases/tag/v2.0.0)
+- **Submission Status:** Complete with all required files
+- **Community Guidelines:** Fully compliant ✓
 
 ---
 
