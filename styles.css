@@ -840,3 +840,51 @@ If your plugin does not need CSS, delete this file.
     font-style: italic;
     color: var(--text-muted);
 }
+
+/* Video context indicator styling */
+.video-context-container {
+	background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(239, 68, 68, 0.05));
+	border: 1px solid rgba(220, 38, 38, 0.3);
+	border-radius: 8px;
+	padding: 12px 16px;
+	margin-bottom: 16px;
+	display: none;
+	align-items: center;
+	justify-content: space-between;
+	backdrop-filter: blur(10px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.video-context-indicator {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-normal);
+}
+
+.video-context-icon {
+	color: #dc2626;
+	font-size: 16px;
+}
+
+.video-context-title {
+	font-weight: 500;
+	font-size: 14px;
+}
+
+.clear-video-btn {
+	background: rgba(220, 38, 38, 0.1);
+	border: 1px solid rgba(220, 38, 38, 0.3);
+	color: #dc2626;
+	border-radius: 6px;
+	padding: 6px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.clear-video-btn:hover {
+	background: rgba(220, 38, 38, 0.2);
+	border-color: rgba(220, 38, 38, 0.5);
+	transform: translateY(-1px);
+}

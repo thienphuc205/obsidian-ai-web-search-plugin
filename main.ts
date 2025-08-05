@@ -375,6 +375,19 @@ export class GeminiChatView extends ItemView {
 	private inputContainer!: HTMLElement;
 	private messageContainer!: HTMLElement;
 	private plugin: GeminiWebSearchPlugin;
+	
+	// YouTube video context tracking
+	private currentVideoContext: {
+		url: string;
+		videoId: string;
+		title?: string;
+		analyzed: boolean;
+	} | null = null;
+	
+	// Video context UI references
+	private videoContextContainer!: HTMLElement;
+	private videoContextTitle!: HTMLElement;
+	
 	public currentResearchMode!: {
 		id: string;
 		label: string;
@@ -537,6 +550,37 @@ export class GeminiChatView extends ItemView {
 				this.addMessage('system', `⚠️ Switched to ${newProvider}, but API key not configured. Please add your API key in plugin settings.`);
 			}
 		});
+
+		// YouTube Video Context Indicator (initially hidden)
+		const videoContextContainer = header.createEl('div', { 
+			cls: 'video-context-container'
+		});
+		videoContextContainer.style.display = 'none';
+		
+		const videoContextHeader = videoContextContainer.createEl('div', { cls: 'video-context-header' });
+		videoContextHeader.createEl('span', { 
+			text: '🎬 Video Context: ',
+			cls: 'video-context-label'
+		});
+		
+		const videoContextTitle = videoContextHeader.createEl('span', { 
+			cls: 'video-context-title',
+			text: 'No video loaded'
+		});
+		
+		const clearVideoButton = videoContextHeader.createEl('button', {
+			cls: 'clear-video-button',
+			text: '❌',
+			attr: { title: 'Clear video context' }
+		});
+		
+		clearVideoButton.addEventListener('click', () => {
+			this.clearVideoContext();
+		});
+
+		// Store reference for easy access
+		this.videoContextContainer = videoContextContainer;
+		this.videoContextTitle = videoContextTitle;
 
 		// Message Container
 		this.messageContainer = container.createEl('div', { cls: 'gemini-chat-messages' });
@@ -745,11 +789,22 @@ export class GeminiChatView extends ItemView {
 	async handleSend(message: string, insertToNote: boolean, saveToFolder: boolean = false) {
 		if (!message.trim()) return;
 
-		// YouTube mode validation
+		// YouTube mode Smart Context validation
 		if (this.currentResearchMode?.id === 'youtube') {
-			if (!this.isValidYouTubeUrl(message.trim())) {
-				new Notice('🎬 Please paste a valid YouTube URL for video analysis\n\nSupported formats:\n• youtube.com/watch?v=VIDEO_ID\n• youtu.be/VIDEO_ID');
+			const isYouTubeUrl = this.isValidYouTubeUrl(message.trim());
+			
+			if (!this.currentVideoContext && !isYouTubeUrl) {
+				// No video context and not a YouTube URL
+				new Notice('🎬 YouTube Mode: Please paste a YouTube URL first to analyze a video\n\nSupported formats:\n• youtube.com/watch?v=VIDEO_ID\n• youtu.be/VIDEO_ID');
 				return;
+			}
+			
+			if (isYouTubeUrl) {
+				// Store video context when URL is provided
+				const videoId = this.extractYouTubeVideoId(message.trim());
+				if (videoId) {
+					this.setVideoContext(message.trim(), videoId, `Video Analysis`);
+				}
 			}
 		}
 
@@ -896,6 +951,39 @@ export class GeminiChatView extends ItemView {
 			return userMessages[0].textContent?.trim() || '';
 		}
 		return '';
+	}
+
+	// YouTube video context management
+	clearVideoContext(): void {
+		this.currentVideoContext = null;
+		this.updateVideoContextUI();
+	}
+
+	setVideoContext(url: string, videoId: string, title?: string): void {
+		this.currentVideoContext = {
+			url,
+			videoId,
+			title,
+			analyzed: true
+		};
+		this.updateVideoContextUI();
+	}
+
+	updateVideoContextUI(): void {
+		if (!this.videoContextContainer || !this.videoContextTitle) return;
+
+		if (this.currentVideoContext && this.currentResearchMode?.id === 'youtube') {
+			this.videoContextContainer.style.display = 'block';
+			this.videoContextTitle.textContent = this.currentVideoContext.title || 
+				`Video ${this.currentVideoContext.videoId}`;
+		} else {
+			this.videoContextContainer.style.display = 'none';
+		}
+	}
+
+	// Public method to get video context
+	getVideoContext() {
+		return this.currentVideoContext;
 	}
 
 	addMessage(role: 'user' | 'assistant' | 'system', content: string, isThinking: boolean = false): string {
@@ -1662,15 +1750,34 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		let requestBody: any;
 
 		// Handle YouTube video analysis
-		if (researchMode?.id === 'youtube' && chatView?.isValidYouTubeUrl(query)) {
+		if (researchMode?.id === 'youtube' && chatView?.getVideoContext()) {
+			// Use video context for analysis
+			const videoContext = chatView.getVideoContext();
+			if (!videoContext) return "Error: No video context available";
+			
+			const videoUrl = videoContext.url;
+			const isUrlQuery = chatView.isValidYouTubeUrl(query);
+			
+			// If user just pasted URL, use comprehensive analysis prompt
+			// If user asked a question, combine it with video context
+			const analysisPrompt = isUrlQuery ? enhancedPrompt : 
+				`Based on the YouTube video at ${videoUrl}, please answer this question: "${query}"
+
+**Context:** You are analyzing the video content to provide a specific answer.
+**Requirements:** 
+- Focus on answering the specific question asked
+- Reference relevant parts of the video content
+- Provide accurate and detailed information
+- Include timestamps or specific examples when relevant`;
+
 			requestBody = {
 				contents: [{
 					parts: [
-						{ text: enhancedPrompt },
+						{ text: analysisPrompt },
 						{ 
 							fileData: {
 								mimeType: "video/*",
-								fileUri: query
+								fileUri: videoUrl
 							}
 						}
 					]
