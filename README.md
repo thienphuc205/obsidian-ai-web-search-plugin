@@ -1,5 +1,7 @@
 # AI Web Search Plugin for Obsidian
 
+> **⚠️ IMPORTANT: Please restart Obsidian after successfully updating your API keys for optimal performance!**
+
 An advanced AI-powered web search plugin that brings real-time research capabilities directly into your Obsidian workspace.
 
 ## ✨ Features
@@ -30,8 +32,15 @@ An advanced AI-powered web search plugin that brings real-time research capabili
 
 ### Installation
 
-1. Install from Obsidian Community Plugins (coming soon)
-2. Or manually: Download latest release and extract to `.obsidian/plugins/`
+1. **From Obsidian Community Plugins:**
+   - Currently under review by Obsidian team
+   - Track progress: [Review Status #7342](https://github.com/obsidianmd/obsidian-releases/pull/7342)
+   - Will be available in Community Plugins when approved
+
+2. **Manual Installation (Available Now):**
+   - Download latest release: [v2.0.0](https://github.com/thienphuc205/obsidian-ai-web-search-plugin/releases/tag/v2.0.0)
+   - Extract to `.obsidian/plugins/ai-web-search/`
+   - Enable plugin in Obsidian settings
 
 ### Setup
 
@@ -133,12 +142,14 @@ npm run build
 
 ## 📝 Changelog
 
-### v2.0.0 (Current)
+### v2.0.0 (Current - Under Review)
 - ✅ Smart YouTube Context Mode
-- ✅ Enhanced Perplexity integration
+- ✅ Enhanced Perplexity integration  
 - ✅ Clickable citation system
 - ✅ Improved source extraction
 - ✅ Multiple language support
+- ✅ Enhanced chat interface with persistent conversations
+- ✅ Submitted to Obsidian Community ([Review #7342](https://github.com/obsidianmd/obsidian-releases/pull/7342))
 
 ### v1.8.0
 - 🔧 Fixed Perplexity sources display
@@ -163,9 +174,10 @@ MIT License - see LICENSE file for details.
 
 ## 🔗 Links
 
-- **GitHub**: [Repository URL]
-- **Issues**: [Issues URL]
-- **Documentation**: [Docs URL]
+- **GitHub**: [thienphuc205/obsidian-ai-web-search-plugin](https://github.com/thienphuc205/obsidian-ai-web-search-plugin)
+- **Issues**: [Report Issues](https://github.com/thienphuc205/obsidian-ai-web-search-plugin/issues)
+- **Releases**: [Latest Releases](https://github.com/thienphuc205/obsidian-ai-web-search-plugin/releases)
+- **Community Review**: [Obsidian Plugin Review #7342](https://github.com/obsidianmd/obsidian-releases/pull/7342)
 
 ## 💝 Support
 
@@ -174,6 +186,22 @@ If you find this plugin helpful:
 - 🐛 Report issues
 - 💡 Suggest features
 - ☕ Buy me a coffee
+
+## 📋 Community Plugin Status
+
+**Current Status:** ✅ Successfully Submitted - Under Official Review  
+**Submission Date:** August 6, 2025  
+**Review PR:** [#7342](https://github.com/obsidianmd/obsidian-releases/pull/7342)  
+**Submission Verified:** All checklist items completed ✓  
+**Expected Timeline:** 1-4 weeks for Obsidian team review  
+**Track Progress:** Watch the PR for updates and approval status
+
+### Review Details
+- **Plugin ID:** `ai-web-search`
+- **Repository:** [thienphuc205/obsidian-ai-web-search-plugin](https://github.com/thienphuc205/obsidian-ai-web-search-plugin)
+- **Release:** [v2.0.0](https://github.com/thienphuc205/obsidian-ai-web-search-plugin/releases/tag/v2.0.0)
+- **Submission Status:** Complete with all required files
+- **Community Guidelines:** Fully compliant ✓
 
 ---
 
