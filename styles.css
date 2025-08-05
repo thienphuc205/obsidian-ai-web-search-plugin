@@ -48,6 +48,142 @@ If your plugin does not need CSS, delete this file.
     border-top: 1px solid var(--background-modifier-border);
 }
 
+/* Research-mode-specific settings styling */
+.research-mode-settings {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    background-color: var(--background-secondary);
+}
+
+.research-mode-title {
+    color: var(--text-accent);
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.research-mode-description {
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.research-mode-settings .setting-item {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.research-mode-settings .setting-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+/* New Chat functionality styling */
+.gemini-chat-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 16px;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.title-container h3 {
+    margin: 0;
+    color: var(--text-normal);
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.new-chat-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: auto;
+    white-space: nowrap;
+}
+
+.new-chat-button:hover {
+    background: var(--interactive-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.new-chat-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.new-chat-button svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+}
+
+.provider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Chat clearing animation */
+.gemini-chat-messages.clearing {
+    opacity: 0.3;
+    transform: scale(0.98);
+    transition: all 0.2s ease-out;
+}
+
+/* Enhanced chat messages styling */
+.gemini-chat-messages {
+    transition: all 0.2s ease;
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+    .title-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .new-chat-button {
+        align-self: flex-end;
+        font-size: 0.8em;
+        padding: 5px 10px;
+    }
+    
+    .new-chat-button span {
+        display: none;
+    }
+    
+    .new-chat-button svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
 /* NEW: Chat View Styles */
 .gemini-chat-container {
     height: 100%;

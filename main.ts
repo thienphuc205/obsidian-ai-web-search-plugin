@@ -1,6 +1,6 @@
 import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, requestUrl, ItemView, WorkspaceLeaf } from 'obsidian';
 
-// Enhanced settings with multiple providers and advanced parameters
+// Enhanced settings with multiple providers and research-mode-specific parameters
 interface GeminiWebSearchSettings {
 	provider: 'gemini' | 'perplexity' | 'tavily' | 'exa';
 	geminiApiKey: string;
@@ -13,17 +13,89 @@ interface GeminiWebSearchSettings {
 	maxResults: number;
 	includeImages: boolean;
 	
-	// Advanced Gemini parameters
-	geminiTemperature: number;
-	geminiTopP: number;
-	geminiTopK: number;
-	geminiMaxTokens: number;
+	// Research-mode-specific Gemini parameters
+	quick: {
+		geminiTemperature: number;
+		geminiTopP: number;
+		geminiTopK: number;
+		geminiMaxTokens: number;
+	};
+	comprehensive: {
+		geminiTemperature: number;
+		geminiTopP: number;
+		geminiTopK: number;
+		geminiMaxTokens: number;
+	};
+	deep: {
+		geminiTemperature: number;
+		geminiTopP: number;
+		geminiTopK: number;
+		geminiMaxTokens: number;
+	};
+	reasoning: {
+		geminiTemperature: number;
+		geminiTopP: number;
+		geminiTopK: number;
+		geminiMaxTokens: number;
+	};
 	
-	// Advanced Perplexity parameters  
-	perplexityTemperature: number;
-	perplexityTopP: number;
-	perplexityTopK: number;
-	perplexityMaxTokens: number;
+	// Research-mode-specific Perplexity parameters (complete set from API docs)
+	quickPerplexity: {
+		temperature: number;
+		max_tokens: number;
+		top_p: number;
+		top_k: number;
+		frequency_penalty: number;
+		presence_penalty: number;
+		search_domain_filter: string[];
+		search_recency_filter: 'month' | 'week' | 'day' | 'hour';
+		return_related_questions: boolean;
+		return_citations: boolean;
+		return_images: boolean;
+		search_context_size: number;
+	};
+	comprehensivePerplexity: {
+		temperature: number;
+		max_tokens: number;
+		top_p: number;
+		top_k: number;
+		frequency_penalty: number;
+		presence_penalty: number;
+		search_domain_filter: string[];
+		search_recency_filter: 'month' | 'week' | 'day' | 'hour';
+		return_related_questions: boolean;
+		return_citations: boolean;
+		return_images: boolean;
+		search_context_size: number;
+	};
+	deepPerplexity: {
+		temperature: number;
+		max_tokens: number;
+		top_p: number;
+		top_k: number;
+		frequency_penalty: number;
+		presence_penalty: number;
+		search_domain_filter: string[];
+		search_recency_filter: 'month' | 'week' | 'day' | 'hour';
+		return_related_questions: boolean;
+		return_citations: boolean;
+		return_images: boolean;
+		search_context_size: number;
+	};
+	reasoningPerplexity: {
+		temperature: number;
+		max_tokens: number;
+		top_p: number;
+		top_k: number;
+		frequency_penalty: number;
+		presence_penalty: number;
+		search_domain_filter: string[];
+		search_recency_filter: 'month' | 'week' | 'day' | 'hour';
+		return_related_questions: boolean;
+		return_citations: boolean;
+		return_images: boolean;
+		search_context_size: number;
+	};
 	
 	// Advanced Exa parameters
 	exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast';
@@ -58,17 +130,89 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	maxResults: 5,
 	includeImages: false,
 	
-	// Advanced Gemini parameters (sensible defaults)
-	geminiTemperature: 0.7,
-	geminiTopP: 0.8,
-	geminiTopK: 40,
-	geminiMaxTokens: 2000,
+	// Research-mode-specific Gemini parameters
+	quick: {
+		geminiTemperature: 0.5,
+		geminiTopP: 0.7,
+		geminiTopK: 20,
+		geminiMaxTokens: 1000
+	},
+	comprehensive: {
+		geminiTemperature: 0.7,
+		geminiTopP: 0.8,
+		geminiTopK: 40,
+		geminiMaxTokens: 2000
+	},
+	deep: {
+		geminiTemperature: 0.8,
+		geminiTopP: 0.9,
+		geminiTopK: 60,
+		geminiMaxTokens: 4000
+	},
+	reasoning: {
+		geminiTemperature: 0.3,
+		geminiTopP: 0.6,
+		geminiTopK: 20,
+		geminiMaxTokens: 3000
+	},
 	
-	// Advanced Perplexity parameters (sensible defaults)
-	perplexityTemperature: 0.75,
-	perplexityTopP: 0.9,
-	perplexityTopK: 50,
-	perplexityMaxTokens: 2000,
+	// Research-mode-specific Perplexity parameters (optimized for each mode)
+	quickPerplexity: {
+		temperature: 0.4,
+		max_tokens: 800,
+		top_p: 0.7,
+		top_k: 20,
+		frequency_penalty: 0.0,
+		presence_penalty: 0.0,
+		search_domain_filter: [],
+		search_recency_filter: 'day',
+		return_related_questions: false,
+		return_citations: true,
+		return_images: false,
+		search_context_size: 3
+	},
+	comprehensivePerplexity: {
+		temperature: 0.6,
+		max_tokens: 2000,
+		top_p: 0.8,
+		top_k: 40,
+		frequency_penalty: 0.1,
+		presence_penalty: 0.1,
+		search_domain_filter: [],
+		search_recency_filter: 'week',
+		return_related_questions: true,
+		return_citations: true,
+		return_images: true,
+		search_context_size: 8
+	},
+	deepPerplexity: {
+		temperature: 0.7,
+		max_tokens: 4000,
+		top_p: 0.9,
+		top_k: 60,
+		frequency_penalty: 0.2,
+		presence_penalty: 0.2,
+		search_domain_filter: [],
+		search_recency_filter: 'month',
+		return_related_questions: true,
+		return_citations: true,
+		return_images: true,
+		search_context_size: 12
+	},
+	reasoningPerplexity: {
+		temperature: 0.2,
+		max_tokens: 3000,
+		top_p: 0.6,
+		top_k: 20,
+		frequency_penalty: 0.0,
+		presence_penalty: 0.0,
+		search_domain_filter: [],
+		search_recency_filter: 'month',
+		return_related_questions: false,
+		return_citations: true,
+		return_images: false,
+		search_context_size: 10
+	},
 	
 	// Advanced Exa parameters (optimal defaults from docs)
 	exaSearchType: 'auto',
@@ -83,133 +227,133 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	exaGetHighlights: true,
 	exaGetSummary: true,
 	
-	// Custom prompts với frameworks chuyên nghiệp
+	// Custom prompts with professional frameworks
 	enableCustomPrompts: false,
-	quickPrompt: `### Nhiệm vụ: Trả lời nhanh và chính xác
+	quickPrompt: `### Task: Provide Quick and Accurate Response
 
-Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu hỏi sau một cách ngắn gọn và chính xác:
+You are a domain expert with extensive knowledge. Please answer the following question concisely and accurately:
 
-**Câu hỏi:** "{query}"
+**Question:** "{query}"
 
-**Yêu cầu đầu ra:**
-- Trả lời trực tiếp và súc tích (2-3 câu tối đa)
-- Tập trung vào 2-3 điểm quan trọng nhất
-- Sử dụng ngôn ngữ rõ ràng, dễ hiểu
-- Nếu không chắc chắn, hãy nói "Cần thêm thông tin để trả lời chính xác"
+**Output Requirements:**
+- Provide direct and concise answers (2-3 sentences maximum)
+- Focus on the 2-3 most important points
+- Use clear, easy-to-understand language
+- If uncertain, state "Need more information to provide accurate answer"
 
-**Định dạng:** Trả lời trực tiếp, không cần giải thích dài dòng.`,
+**Format:** Direct answer without lengthy explanations.`,
 
-	comprehensivePrompt: `### Framework: Phân tích toàn diện CRISPE
+	comprehensivePrompt: `### Framework: Comprehensive Analysis Using CRISPE
 
-**Clarity (Rõ ràng):** Bạn là một nhà nghiên cứu chuyên nghiệp có nhiều năm kinh nghiệm.
+**Clarity:** You are a professional researcher with years of experience in the field.
 
-**Relevance (Phù hợp):** Phân tích toàn diện chủ đề: "{query}"
+**Relevance:** Conduct comprehensive analysis of the topic: "{query}"
 
-**Iteration (Lặp lại):** Cấu trúc phản hồi theo các bước logic:
+**Iteration:** Structure your response in logical steps:
 
-1. **Tổng quan** (2-3 câu giới thiệu chủ đề)
-2. **Các khía cạnh chính** (ít nhất 3-4 khía cạnh quan trọng)
-3. **Bối cảnh và ứng dụng** (tại sao điều này quan trọng)
-4. **Ví dụ cụ thể** (1-2 ví dụ minh họa)
-5. **Kết luận và hướng phát triển**
+1. **Overview** (2-3 sentences introducing the topic)
+2. **Key Aspects** (at least 3-4 important dimensions)
+3. **Context and Applications** (why this matters)
+4. **Concrete Examples** (1-2 illustrative cases)
+5. **Conclusions and Future Directions**
 
-**Specificity (Cụ thể):** 
-- Độ dài: 400-600 từ
-- Ngôn ngữ: Chuyên nghiệp nhưng dễ hiểu
-- Trích dẫn: Nếu có thông tin cụ thể, hãy đề cập nguồn
+**Specificity:** 
+- Length: 400-600 words
+- Language: Professional but accessible
+- Citations: Mention sources when specific information is available
 
-**Parameters (Tham số):**
-- Sử dụng bullet points và headings để tổ chức thông tin
-- Tránh jargon quá kỹ thuật trừ khi cần thiết
-- Cân bằng giữa độ sâu và khả năng tiếp cận
+**Parameters:**
+- Use bullet points and headings to organize information
+- Avoid excessive technical jargon unless necessary
+- Balance depth with accessibility
 
-**Examples (Ví dụ):** Bao gồm ví dụ thực tế để minh họa các khái niệm trừu tượng.`,
+**Examples:** Include real-world examples to illustrate abstract concepts.`,
 
-	deepPrompt: `### Framework: Nghiên cứu sâu TRACE
+	deepPrompt: `### Framework: Deep Research Using TRACE
 
-**Task (Nhiệm vụ):** Thực hiện nghiên cứu chuyên sâu về: "{query}"
+**Task:** Conduct in-depth research on: "{query}"
 
-**Request (Yêu cầu cụ thể):**
-- Phân tích đa chiều từ ít nhất 4-5 góc độ khác nhau
-- Đánh giá các quan điểm đối lập (nếu có)
-- Kết nối với các lĩnh vực liên quan
-- Độ dài: 800-1200 từ
+**Request (Specific Requirements):**
+- Multi-dimensional analysis from at least 4-5 different perspectives
+- Evaluate opposing viewpoints (if applicable)
+- Connect to related fields and disciplines
+- Length: 800-1200 words
 
-**Action (Hành động thực hiện):**
-1. **Phân tích nền tảng** - Lịch sử, nguồn gốc, định nghĩa
-2. **Khảo sát toàn cảnh** - Tình trạng hiện tại, xu hướng
-3. **Đa góc nhìn** - Quan điểm từ các lĩnh vực/trường phái khác nhau
-4. **Phân tích sâu** - Nguyên nhân, hệ quả, mối liên hệ
-5. **Dự báo và hàm ý** - Tác động tương lai, ứng dụng thực tiễn
-6. **Đánh giá phản biện** - Điểm mạnh, hạn chế, tranh cãi
+**Action (Implementation Steps):**
+1. **Foundation Analysis** - History, origins, definitions
+2. **Current Landscape** - Present state, trends, developments
+3. **Multiple Perspectives** - Views from different fields/schools of thought
+4. **Deep Analysis** - Causes, effects, interconnections
+5. **Future Implications** - Projected impacts, practical applications
+6. **Critical Assessment** - Strengths, limitations, controversies
 
-**Context (Bối cảnh):**
-- Bạn là một chuyên gia hàng đầu trong lĩnh vực này
-- Đối tượng: Độc giả có kiến thức nền tảng tốt
-- Mục tiêu: Cung cấp cái nhìn toàn diện và sâu sắc nhất
+**Context:**
+- You are a leading expert in this field
+- Audience: Readers with good foundational knowledge
+- Goal: Provide the most comprehensive and insightful perspective
 
-**Example (Định dạng mẫu):**
-## I. Phân tích nền tảng
-[Nội dung chi tiết...]
+**Example (Format Template):**
+## I. Foundation Analysis
+[Detailed content...]
 
-## II. Đa góc nhìn chuyên môn
-### A. Góc độ [lĩnh vực 1]
-### B. Góc độ [lĩnh vực 2]
+## II. Professional Multi-Perspective View
+### A. [Field 1] Perspective
+### B. [Field 2] Perspective
 [...]
 
-## III. Kết luận và hàm ý
-[Tổng hợp, dự báo...]
+## III. Conclusions and Implications
+[Synthesis, projections...]
 
-**Lưu ý chất lượng:** Chỉ trình bày thông tin bạn có độ tin cậy cao. Nếu thiếu dữ liệu ở phần nào, hãy thừa nhận và đề xuất hướng nghiên cứu thêm.`,
+**Quality Note:** Only present information you have high confidence in. If lacking data in any section, acknowledge this and suggest directions for further research.`,
 
-	reasoningPrompt: `### Framework: Lý luận logic nâng cao
+	reasoningPrompt: `### Framework: Advanced Logical Reasoning
 
-**Meta-instruction:** Bạn là một chuyên gia tư duy phản biện với khả năng phân tích logic xuất sắc.
+**Meta-instruction:** You are a critical thinking expert with exceptional logical analysis capabilities.
 
-**Nhiệm vụ phân tích:** "{query}"
+**Analysis Task:** "{query}"
 
-**Quy trình tư duy (Chain-of-Thought):**
+**Reasoning Process (Chain-of-Thought):**
 
-### Bước 1: Phân tách vấn đề
-- Xác định các thành phần cốt lõi của vấn đề
-- Phân loại thông tin: Dữ kiện | Giả thiết | Yếu tố chưa rõ
+### Step 1: Problem Decomposition
+- Identify core components of the issue
+- Categorize information: Facts | Assumptions | Unclear factors
 
-### Bước 2: Phân tích đa chiều  
-**A. Phân tích logic:**
-- Tiền đề nào đang được giả định?
-- Các mối quan hệ nhân-quả tiềm ẩn?
+### Step 2: Multi-Dimensional Analysis  
+**A. Logical Analysis:**
+- What premises are being assumed?
+- What are the potential cause-effect relationships?
 
-**B. Phân tích ngữ cảnh:**
-- Yếu tố môi trường/hoàn cảnh ảnh hưởng?
-- Các constraint và boundary conditions?
+**B. Contextual Analysis:**
+- What environmental/situational factors have influence?
+- What are the constraints and boundary conditions?
 
-**C. Phân tích góc nhìn:**
-- Quan điểm từ các stakeholder khác nhau?
-- Bias tiềm ẩn trong cách đặt vấn đề?
+**C. Perspective Analysis:**
+- What are the viewpoints from different stakeholders?
+- What potential biases exist in how the problem is framed?
 
-### Bước 3: Đánh giá bằng chứng
-- Phân loại: Bằng chứng mạnh | Bằng chứng yếu | Thiếu bằng chứng
-- Cross-validation: Các nguồn có nhất quán không?
-- Reliability check: Độ tin cậy của từng luận điểm?
+### Step 3: Evidence Evaluation
+- Categorize: Strong evidence | Weak evidence | Missing evidence
+- Cross-validation: Are sources consistent?
+- Reliability check: How reliable is each argument?
 
-### Bước 4: Lý luận tổng hợp
-**Suy luận chính:**
-[Trình bày logic chain chính với các bước intermediate]
+### Step 4: Synthetic Reasoning
+**Primary Inference:**
+[Present main logic chain with intermediate steps]
 
-**Các giả thuyết thay thế:**
-[Nêu và đánh giá ít nhất 2 cách hiểu khác]
+**Alternative Hypotheses:**
+[Present and evaluate at least 2 alternative interpretations]
 
-**Độ tin cậy của kết luận:**
-[Đánh giá mức độ chắc chắn với lý do]
+**Confidence Level of Conclusions:**
+[Assess certainty level with reasoning]
 
-### Bước 5: Kết luận có cấu trúc
-- **Kết luận chính:** [1-2 câu tóm tắt]
-- **Độ tin cậy:** [Cao/Trung bình/Thấp + lý do]  
-- **Điều kiện:** [Trong hoàn cảnh nào kết luận này đúng]
-- **Hạn chế:** [Những gì chưa được xem xét đầy đủ]
-- **Hướng nghiên cứu thêm:** [Câu hỏi mở cho tương lai]
+### Step 5: Structured Conclusion
+- **Main Conclusion:** [1-2 sentence summary]
+- **Confidence Level:** [High/Medium/Low + rationale]  
+- **Conditions:** [Under what circumstances is this conclusion valid]
+- **Limitations:** [What hasn't been fully considered]
+- **Future Research Directions:** [Open questions for the future]
 
-**Kiểm tra cuối:** Hãy tự đặt câu hỏi về logic của chính mình - có lỗ hổng nào không?`
+**Final Check:** Question your own logic - are there any gaps or weaknesses?`
 }
 
 // Chat View constants
@@ -255,7 +399,40 @@ export class GeminiChatView extends ItemView {
 
 		// Header
 		const header = container.createEl('div', { cls: 'gemini-chat-header' });
-		header.createEl('h3', { text: 'AI Web Search Chat' });
+		
+		// Title and New Chat button container
+		const titleContainer = header.createEl('div', { cls: 'title-container' });
+		titleContainer.createEl('h3', { text: 'AI Web Search Chat' });
+		
+		// New Chat button
+		const newChatButton = titleContainer.createEl('button', { 
+			cls: 'new-chat-button',
+			title: 'Start a new conversation (Ctrl/Cmd + N)',
+			attr: {
+				'aria-label': 'Start new chat conversation',
+				'role': 'button'
+			}
+		});
+		newChatButton.innerHTML = `
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+				<line x1="12" y1="8" x2="12" y2="16"></line>
+				<line x1="8" y1="12" x2="16" y2="12"></line>
+			</svg>
+			<span>New Chat</span>
+		`;
+		
+		newChatButton.addEventListener('click', () => {
+			this.clearChat();
+		});
+		
+		// Add keyboard shortcut for new chat (Ctrl/Cmd + N when view is focused)
+		this.containerEl.addEventListener('keydown', (e) => {
+			if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey && !e.altKey) {
+				e.preventDefault();
+				this.clearChat();
+			}
+		});
 		
 		// Provider selector container
 		const providerContainer = header.createEl('div', { cls: 'provider-container' });
@@ -578,6 +755,80 @@ export class GeminiChatView extends ItemView {
 		}
 	}
 
+	// Method to clear chat and start fresh conversation
+	clearChat() {
+		// Check if there are messages to clear
+		const hasMessages = this.messageContainer && this.messageContainer.children.length > 1; // More than welcome message
+		
+		if (hasMessages) {
+			// Show confirmation dialog for user safety
+			const confirmed = confirm('Are you sure you want to start a new chat? This will clear the current conversation.');
+			if (!confirmed) {
+				return;
+			}
+		}
+		
+		if (this.messageContainer) {
+			// Add fade out animation
+			this.messageContainer.addClass('clearing');
+			
+			setTimeout(() => {
+				this.messageContainer.empty();
+				this.messageContainer.removeClass('clearing');
+				
+				// Reset to default research mode
+				this.currentResearchMode = {
+					id: 'comprehensive',
+					label: '🔍 Comprehensive',
+					description: 'Balanced research with detailed analysis',
+					model: 'gemini-2.5-flash',
+					perplexityModel: 'sonar-pro',
+					exaSearchType: 'auto',
+					exaCategory: ''
+				};
+				
+				// Update button states for research mode buttons
+				const buttons = this.containerEl.querySelectorAll('.research-mode-btn-small');
+				buttons.forEach(btn => {
+					btn.removeClass('active');
+					if (btn.getAttribute('data-mode') === 'comprehensive') {
+						btn.addClass('active');
+					}
+				});
+				
+				// Add fresh welcome message with animation
+				const hasApiKey = this.checkApiKey(this.plugin.settings.provider);
+				const welcomeMessage = hasApiKey 
+					? `🆕 New conversation started! Ask me anything and I'll search the web for you using ${this.plugin.settings.provider}.`
+					: `⚠️ New conversation started! Please configure your ${this.plugin.settings.provider} API key in plugin settings before starting.`;
+				
+				this.addMessage('system', welcomeMessage);
+				
+				// Focus on input after clearing
+				setTimeout(() => {
+					const inputEl = this.containerEl.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+					if (inputEl) {
+						inputEl.focus();
+						inputEl.placeholder = 'Ask anything to start your new conversation...';
+						
+						// Reset placeholder after a few seconds
+						setTimeout(() => {
+							inputEl.placeholder = 'Ask anything...';
+						}, 3000);
+					}
+				}, 100);
+				
+			}, 200); // Short delay for animation
+		} else {
+			// If no message container, just focus input
+			const inputEl = this.containerEl.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+			if (inputEl) {
+				inputEl.focus();
+			}
+		}
+	}
+
+	// Method to check if provider has API key configured
 	checkApiKey(provider: 'gemini' | 'perplexity' | 'tavily' | 'exa'): boolean {
 		switch (provider) {
 			case 'gemini':
@@ -734,6 +985,21 @@ export default class GeminiWebSearchPlugin extends Plugin {
 			name: 'AI Web Search: Open Chat Panel',
 			callback: () => {
 				this.activateView();
+			}
+		});
+
+		// Add command for new chat
+		this.addCommand({
+			id: 'gemini-new-chat',
+			name: 'AI Web Search: Start New Chat',
+			callback: () => {
+				this.activateView().then(() => {
+					// Get the chat view and clear it
+					const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+					if (chatView) {
+						chatView.clearChat();
+					}
+				});
 			}
 		});
 
@@ -1030,6 +1296,25 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
 		const researchMode = chatView?.currentResearchMode;
 
+		// Get research-mode-specific parameters
+		let geminiParams = this.settings.comprehensive; // default
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					geminiParams = this.settings.quick;
+					break;
+				case 'comprehensive':
+					geminiParams = this.settings.comprehensive;
+					break;
+				case 'deep':
+					geminiParams = this.settings.deep;
+					break;
+				case 'reasoning':
+					geminiParams = this.settings.reasoning;
+					break;
+			}
+		}
+
 		// Customize prompt based on research mode or custom prompts
 		let enhancedPrompt = query;
 		if (this.settings.enableCustomPrompts && researchMode) {
@@ -1053,86 +1338,69 @@ export default class GeminiWebSearchPlugin extends Plugin {
 			// Use improved default prompts
 			switch (researchMode.id) {
 				case 'quick':
-					enhancedPrompt = `### Nhiệm vụ: Trả lời nhanh và chính xác
+					enhancedPrompt = `### Task: Provide Quick and Accurate Response
 
-Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu hỏi sau một cách ngắn gọn và chính xác:
+You are a domain expert with extensive knowledge. Please answer the following question concisely and accurately:
 
-**Câu hỏi:** "${query}"
+**Question:** "${query}"
 
-**Yêu cầu đầu ra:**
-- Trả lời trực tiếp và súc tích (2-3 câu tối đa)
-- Tập trung vào 2-3 điểm quan trọng nhất
-- Sử dụng ngôn ngữ rõ ràng, dễ hiểu
+**Output Requirements:**
+- Provide direct and concise answers (2-3 sentences maximum)
+- Focus on the 2-3 most important points
+- Use clear, easy-to-understand language
+- If uncertain, state "Need more information to provide accurate answer"
 
-**Định dạng:** Trả lời trực tiếp, không cần giải thích dài dòng.`;
+**Format:** Direct answer without lengthy explanations.`;
 					break;
 				case 'comprehensive':
-					enhancedPrompt = `### Framework: Phân tích toàn diện
+					enhancedPrompt = `### Framework: Comprehensive Analysis
 
-**Nhiệm vụ:** Phân tích toàn diện chủ đề: "${query}"
+**Task:** Comprehensive analysis of the topic: "${query}"
 
-**Cấu trúc phản hồi:**
-1. **Tổng quan** (2-3 câu giới thiệu)
-2. **Các khía cạnh chính** (3-4 khía cạnh quan trọng)
-3. **Bối cảnh và ứng dụng** (tại sao quan trọng)
-4. **Ví dụ cụ thể** (1-2 ví dụ minh họa)
-5. **Kết luận và hướng phát triển**
+**Response Structure:**
+1. **Overview** (2-3 introductory sentences)
+2. **Key Aspects** (3-4 important dimensions)
+3. **Context and Applications** (why this matters)
+4. **Concrete Examples** (1-2 illustrative cases)
+5. **Conclusions and Future Directions**
 
-**Yêu cầu:** 400-600 từ, chuyên nghiệp nhưng dễ hiểu, có nguồn khi có thể.`;
+**Requirements:** 400-600 words, professional but accessible, cite sources when available.`;
 					break;
 				case 'deep':
-					enhancedPrompt = `### Framework: Nghiên cứu sâu
+					enhancedPrompt = `### Framework: Deep Research
 
-**Nhiệm vụ:** Nghiên cứu chuyên sâu về: "${query}"
+**Task:** In-depth research on: "${query}"
 
-**Phân tích bao gồm:**
-1. **Phân tích nền tảng** - Lịch sử, nguồn gốc, định nghĩa
-2. **Khảo sát toàn cảnh** - Tình trạng hiện tại, xu hướng  
-3. **Đa góc nhìn** - Quan điểm từ các lĩnh vực khác nhau
-4. **Phân tích sâu** - Nguyên nhân, hệ quả, mối liên hệ
-5. **Dự báo và hàm ý** - Tác động tương lai, ứng dụng thực tiễn
-6. **Đánh giá phản biện** - Điểm mạnh, hạn chế, tranh cãi
+**Analysis includes:**
+1. **Foundation Analysis** - History, origins, definitions
+2. **Current Landscape** - Present state, trends  
+3. **Multiple Perspectives** - Views from different fields
+4. **Deep Analysis** - Causes, effects, interconnections
+5. **Future Implications** - Projected impacts, practical applications
+6. **Critical Assessment** - Strengths, limitations, controversies
 
-**Yêu cầu:** 800-1200 từ, cái nhìn toàn diện và sâu sắc, có cấu trúc rõ ràng.`;
+**Requirements:** 800-1200 words, comprehensive and insightful perspective, clear structure.`;
 					break;
 				case 'reasoning':
-					enhancedPrompt = `### Framework: Lý luận logic
+					enhancedPrompt = `### Framework: Logical Reasoning
 
-**Nhiệm vụ phân tích:** "${query}"
+**Analysis Task:** "${query}"
 
-**Quy trình tư duy:**
-1. **Phân tách vấn đề** - Xác định thành phần cốt lõi
-2. **Phân tích đa chiều** - Logic, ngữ cảnh, góc nhìn khác nhau
-3. **Đánh giá bằng chứng** - Phân loại độ tin cậy
-4. **Lý luận tổng hợp** - Logic chain và giả thuyết thay thế
-5. **Kết luận có cấu trúc** - Kết luận, độ tin cậy, hạn chế
+**Thinking Process:**
+1. **Problem Decomposition** - Identify core components
+2. **Multi-dimensional Analysis** - Logic, context, different perspectives
+3. **Evidence Evaluation** - Categorize reliability levels
+4. **Synthetic Reasoning** - Logic chain and alternative hypotheses
+5. **Structured Conclusion** - Conclusion, confidence level, limitations
 
-**Yêu cầu:** Tư duy phản biện, phân tích logic xuất sắc, tự kiểm tra lỗ hổng logic.`;
+**Requirements:** Critical thinking, excellent logical analysis, self-check for logical gaps.`;
 					break;
 				default:
-					enhancedPrompt = `Hãy cung cấp phân tích toàn diện về: "${query}" với thông tin chính xác và nguồn đáng tin cậy.`;
+					enhancedPrompt = `Please provide comprehensive analysis on: "${query}" with accurate information and reliable sources.`;
 			}
 		}
 
 		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
-
-		// Dynamic token limits based on research mode
-		let maxTokens = this.settings.geminiMaxTokens;
-		if (researchMode) {
-			switch (researchMode.id) {
-				case 'quick':
-					maxTokens = Math.min(this.settings.geminiMaxTokens, 1000);
-					break;
-				case 'deep':
-					maxTokens = Math.max(this.settings.geminiMaxTokens, 4000);
-					break;
-				case 'reasoning':
-					maxTokens = this.settings.geminiMaxTokens;
-					break;
-				default:
-					maxTokens = this.settings.geminiMaxTokens;
-			}
-		}
 
 		const requestBody = {
 			contents: [{
@@ -1142,10 +1410,10 @@ Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu
 				google_search: {}
 			}],
 			generationConfig: {
-				temperature: this.settings.geminiTemperature,
-				topP: this.settings.geminiTopP,
-				topK: this.settings.geminiTopK,
-				maxOutputTokens: maxTokens
+				temperature: geminiParams.geminiTemperature,
+				topP: geminiParams.geminiTopP,
+				topK: geminiParams.geminiTopK,
+				maxOutputTokens: geminiParams.geminiMaxTokens
 			}
 		};
 
@@ -1192,19 +1460,57 @@ Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu
 		const researchMode = chatView?.currentResearchMode;
 		const modelToUse = researchMode?.perplexityModel || this.settings.perplexityModel;
 
-		// Dynamic token limits based on research mode
-		let maxTokens = this.settings.perplexityMaxTokens;
+		// Get research-mode-specific Perplexity parameters
+		let perplexityParams = this.settings.comprehensivePerplexity; // default
 		if (researchMode) {
 			switch (researchMode.id) {
 				case 'quick':
-					maxTokens = Math.min(this.settings.perplexityMaxTokens, 1000);
+					perplexityParams = this.settings.quickPerplexity;
+					break;
+				case 'comprehensive':
+					perplexityParams = this.settings.comprehensivePerplexity;
 					break;
 				case 'deep':
-					maxTokens = Math.max(this.settings.perplexityMaxTokens, 4000);
+					perplexityParams = this.settings.deepPerplexity;
 					break;
-				default:
-					maxTokens = this.settings.perplexityMaxTokens;
+				case 'reasoning':
+					perplexityParams = this.settings.reasoningPerplexity;
+					break;
 			}
+		}
+
+		// Build request body with all Perplexity API parameters
+		const requestBody: any = {
+			model: modelToUse,
+			messages: [{
+				role: "user",
+				content: query
+			}],
+			max_tokens: perplexityParams.max_tokens,
+			temperature: perplexityParams.temperature,
+			top_p: perplexityParams.top_p,
+			top_k: perplexityParams.top_k,
+			frequency_penalty: perplexityParams.frequency_penalty,
+			presence_penalty: perplexityParams.presence_penalty,
+			return_citations: perplexityParams.return_citations,
+			return_images: perplexityParams.return_images,
+			return_related_questions: perplexityParams.return_related_questions
+		};
+
+		// Add optional search filters if configured
+		if (perplexityParams.search_domain_filter.length > 0) {
+			requestBody.search_domain_filter = perplexityParams.search_domain_filter;
+		}
+		
+		if (perplexityParams.search_recency_filter) {
+			requestBody.search_recency_filter = perplexityParams.search_recency_filter;
+		}
+
+		// Add web search options
+		if (perplexityParams.search_context_size > 0) {
+			requestBody.web_search_options = {
+				search_context_size: perplexityParams.search_context_size
+			};
 		}
 
 		const response = await requestUrl({
@@ -1214,18 +1520,7 @@ Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu
 				'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({
-				model: modelToUse,
-				messages: [{
-					role: "user",
-					content: query
-				}],
-				max_tokens: maxTokens,
-				temperature: this.settings.perplexityTemperature,
-				top_p: this.settings.perplexityTopP,
-				top_k: this.settings.perplexityTopK,
-				return_citations: true
-			})
+			body: JSON.stringify(requestBody)
 		});
 
 		const data = response.json;
@@ -1755,54 +2050,69 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Advanced Gemini Parameters
-		containerEl.createEl('h4', {text: 'Advanced Gemini Parameters'});
+		// Research-mode-specific Gemini Parameters
+		containerEl.createEl('h4', {text: 'Research-Mode-Specific Gemini Parameters'});
+		containerEl.createEl('p', {text: 'Each research mode has its own optimized parameter settings:', cls: 'setting-item-description'});
 
-		new Setting(containerEl)
+		this.addResearchModeGeminiSettings(containerEl, 'quick', '⚡ Quick Mode', 'Fast, focused responses');
+		this.addResearchModeGeminiSettings(containerEl, 'comprehensive', '🔍 Comprehensive Mode', 'Balanced analysis');
+		this.addResearchModeGeminiSettings(containerEl, 'deep', '🔬 Deep Mode', 'Thorough research');
+		this.addResearchModeGeminiSettings(containerEl, 'reasoning', '🧠 Reasoning Mode', 'Logical analysis');
+	}
+
+	addResearchModeGeminiSettings(containerEl: HTMLElement, mode: string, title: string, description: string) {
+		const modeContainer = containerEl.createEl('div', {cls: 'research-mode-settings'});
+		modeContainer.createEl('h5', {text: title, cls: 'research-mode-title'});
+		modeContainer.createEl('p', {text: description, cls: 'research-mode-description'});
+
+		const modeKey = mode as keyof typeof this.plugin.settings;
+		const modeSettings = this.plugin.settings[modeKey] as any;
+
+		new Setting(modeContainer)
 			.setName('Temperature')
 			.setDesc('Controls randomness (0.0 = deterministic, 1.0 = very random)')
 			.addSlider(slider => slider
 				.setLimits(0, 1, 0.1)
-				.setValue(this.plugin.settings.geminiTemperature)
+				.setValue(modeSettings.geminiTemperature)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.geminiTemperature = value;
+					(this.plugin.settings[modeKey] as any).geminiTemperature = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(modeContainer)
 			.setName('Top P')
 			.setDesc('Nucleus sampling threshold (0.1 = conservative, 1.0 = diverse)')
 			.addSlider(slider => slider
 				.setLimits(0.1, 1, 0.1)
-				.setValue(this.plugin.settings.geminiTopP)
+				.setValue(modeSettings.geminiTopP)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.geminiTopP = value;
+					(this.plugin.settings[modeKey] as any).geminiTopP = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(modeContainer)
 			.setName('Top K')
 			.setDesc('Number of top tokens to consider (1-100)')
 			.addSlider(slider => slider
 				.setLimits(1, 100, 1)
-				.setValue(this.plugin.settings.geminiTopK)
+				.setValue(modeSettings.geminiTopK)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.geminiTopK = value;
+					(this.plugin.settings[modeKey] as any).geminiTopK = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(modeContainer)
 			.setName('Max Output Tokens')
 			.setDesc('Maximum response length (100-8192)')
 			.addSlider(slider => slider
 				.setLimits(100, 8192, 100)
-				.setValue(this.plugin.settings.geminiMaxTokens)
+				.setValue(modeSettings.geminiMaxTokens)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.geminiMaxTokens = value;
+					(this.plugin.settings[modeKey] as any).geminiMaxTokens = value;
 					await this.plugin.saveSettings();
 				}));
 	}
@@ -1833,54 +2143,167 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Advanced Perplexity Parameters
-		containerEl.createEl('h4', {text: 'Advanced Perplexity Parameters'});
+		// Research-mode-specific Perplexity Parameters
+		containerEl.createEl('h4', {text: 'Research-Mode-Specific Perplexity Parameters'});
+		containerEl.createEl('p', {text: 'Complete Perplexity API parameter set, optimized per research mode:', cls: 'setting-item-description'});
 
-		new Setting(containerEl)
+		this.addResearchModePerplexitySettings(containerEl, 'quickPerplexity', '⚡ Quick Mode', 'Fast, focused responses with minimal context');
+		this.addResearchModePerplexitySettings(containerEl, 'comprehensivePerplexity', '🔍 Comprehensive Mode', 'Balanced analysis with citations');
+		this.addResearchModePerplexitySettings(containerEl, 'deepPerplexity', '🔬 Deep Mode', 'Thorough research with maximum context');
+		this.addResearchModePerplexitySettings(containerEl, 'reasoningPerplexity', '🧠 Reasoning Mode', 'Logical analysis with focused search');
+	}
+
+	addResearchModePerplexitySettings(containerEl: HTMLElement, mode: string, title: string, description: string) {
+		const modeContainer = containerEl.createEl('div', {cls: 'research-mode-settings'});
+		modeContainer.createEl('h5', {text: title, cls: 'research-mode-title'});
+		modeContainer.createEl('p', {text: description, cls: 'research-mode-description'});
+
+		const modeKey = mode as keyof typeof this.plugin.settings;
+		const modeSettings = this.plugin.settings[modeKey] as any;
+
+		// Core generation parameters
+		new Setting(modeContainer)
 			.setName('Temperature')
 			.setDesc('Controls randomness (0.0 = deterministic, 2.0 = very random)')
 			.addSlider(slider => slider
 				.setLimits(0, 2, 0.1)
-				.setValue(this.plugin.settings.perplexityTemperature)
+				.setValue(modeSettings.temperature)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.perplexityTemperature = value;
+					(this.plugin.settings[modeKey] as any).temperature = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(modeContainer)
+			.setName('Max Tokens')
+			.setDesc('Maximum response length (100-4096)')
+			.addSlider(slider => slider
+				.setLimits(100, 4096, 100)
+				.setValue(modeSettings.max_tokens)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).max_tokens = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(modeContainer)
 			.setName('Top P')
 			.setDesc('Nucleus sampling threshold (0.1 = conservative, 1.0 = diverse)')
 			.addSlider(slider => slider
 				.setLimits(0.1, 1, 0.1)
-				.setValue(this.plugin.settings.perplexityTopP)
+				.setValue(modeSettings.top_p)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.perplexityTopP = value;
+					(this.plugin.settings[modeKey] as any).top_p = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(modeContainer)
 			.setName('Top K')
 			.setDesc('Number of top tokens to consider (1-100)')
 			.addSlider(slider => slider
 				.setLimits(1, 100, 1)
-				.setValue(this.plugin.settings.perplexityTopK)
+				.setValue(modeSettings.top_k)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.perplexityTopK = value;
+					(this.plugin.settings[modeKey] as any).top_k = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName('Max Output Tokens')
-			.setDesc('Maximum response length (100-4096)')
+		// Penalty parameters
+		new Setting(modeContainer)
+			.setName('Frequency Penalty')
+			.setDesc('Reduces repetition based on frequency (-2.0 to 2.0)')
 			.addSlider(slider => slider
-				.setLimits(100, 4096, 100)
-				.setValue(this.plugin.settings.perplexityMaxTokens)
+				.setLimits(-2, 2, 0.1)
+				.setValue(modeSettings.frequency_penalty)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.perplexityMaxTokens = value;
+					(this.plugin.settings[modeKey] as any).frequency_penalty = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(modeContainer)
+			.setName('Presence Penalty')
+			.setDesc('Encourages new topics (-2.0 to 2.0)')
+			.addSlider(slider => slider
+				.setLimits(-2, 2, 0.1)
+				.setValue(modeSettings.presence_penalty)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).presence_penalty = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Search parameters
+		new Setting(modeContainer)
+			.setName('Search Recency Filter')
+			.setDesc('Filter search results by recency')
+			.addDropdown(dropdown => dropdown
+				.addOption('', 'No filter')
+				.addOption('hour', 'Past hour')
+				.addOption('day', 'Past day') 
+				.addOption('week', 'Past week')
+				.addOption('month', 'Past month')
+				.setValue(modeSettings.search_recency_filter)
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).search_recency_filter = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(modeContainer)
+			.setName('Search Context Size')
+			.setDesc('Number of search results to include in context (1-20)')
+			.addSlider(slider => slider
+				.setLimits(1, 20, 1)
+				.setValue(modeSettings.search_context_size)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).search_context_size = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Boolean options
+		new Setting(modeContainer)
+			.setName('Return Related Questions')
+			.setDesc('Include related questions in response')
+			.addToggle(toggle => toggle
+				.setValue(modeSettings.return_related_questions)
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).return_related_questions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(modeContainer)
+			.setName('Return Citations')
+			.setDesc('Include source citations in response')
+			.addToggle(toggle => toggle
+				.setValue(modeSettings.return_citations)
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).return_citations = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(modeContainer)
+			.setName('Return Images')
+			.setDesc('Include relevant images in response')
+			.addToggle(toggle => toggle
+				.setValue(modeSettings.return_images)
+				.onChange(async (value) => {
+					(this.plugin.settings[modeKey] as any).return_images = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Domain filter
+		new Setting(modeContainer)
+			.setName('Search Domain Filter')
+			.setDesc('Comma-separated list of domains to search (e.g., arxiv.org, wikipedia.org)')
+			.addTextArea(text => text
+				.setPlaceholder('arxiv.org, wikipedia.org, github.com')
+				.setValue(modeSettings.search_domain_filter.join(', '))
+				.onChange(async (value) => {
+					const domains = value.split(',').map(d => d.trim()).filter(d => d);
+					(this.plugin.settings[modeKey] as any).search_domain_filter = domains;
 					await this.plugin.saveSettings();
 				}));
 	}
@@ -2192,19 +2615,19 @@ class GeminiSettingTab extends PluginSettingTab {
 		frameworkHelp.innerHTML = `
 			<strong>🧠 Professional Prompt Frameworks:</strong>
 			<ul>
-				<li><strong>Quick Mode:</strong> Role-based + Constraints - Ngắn gọn, chính xác, tránh hallucination</li>
+				<li><strong>Quick Mode:</strong> Role-based + Constraints - Concise, accurate, avoid hallucination</li>
 				<li><strong>Comprehensive:</strong> CRISPE Framework - Clarity, Relevance, Iteration, Specificity, Parameters, Examples</li>
 				<li><strong>Deep Research:</strong> TRACE Framework - Task, Request, Action, Context, Example</li>
-				<li><strong>Reasoning:</strong> Chain-of-Thought + Meta-prompting - Phân tích logic từng bước</li>
+				<li><strong>Reasoning:</strong> Chain-of-Thought + Meta-prompting - Step-by-step logical analysis</li>
 			</ul>
-			<p><strong>💡 Sử dụng placeholder:</strong> <code>{query}</code> sẽ được thay thế bằng câu hỏi thực tế.</p>
+			<p><strong>💡 Use placeholder:</strong> <code>{query}</code> will be replaced with the actual question.</p>
 		`;
 
 		new Setting(customPromptContent)
 			.setName('⚡ Quick Mode Prompt')
-			.setDesc('Framework: Role Assignment + Clear Constraints. Tập trung vào trả lời ngắn gọn, chính xác (2-3 câu)')
+			.setDesc('Framework: Role Assignment + Clear Constraints. Focus on concise, accurate answers (2-3 sentences)')
 			.addTextArea(text => text
-				.setPlaceholder('Nhập prompt tùy chỉnh cho chế độ nhanh...')
+				.setPlaceholder('Enter custom prompt for quick mode...')
 				.setValue(this.plugin.settings.quickPrompt)
 				.onChange(async (value) => {
 					this.plugin.settings.quickPrompt = value;
@@ -2213,9 +2636,9 @@ class GeminiSettingTab extends PluginSettingTab {
 
 		new Setting(customPromptContent)
 			.setName('🔍 Comprehensive Mode Prompt')
-			.setDesc('Framework: CRISPE (Clarity, Relevance, Iteration, Specificity, Parameters, Examples). Phân tích toàn diện 400-600 từ')
+			.setDesc('Framework: CRISPE (Clarity, Relevance, Iteration, Specificity, Parameters, Examples). Comprehensive analysis 400-600 words')
 			.addTextArea(text => text
-				.setPlaceholder('Nhập prompt tùy chỉnh cho chế độ toàn diện...')
+				.setPlaceholder('Enter custom prompt for comprehensive mode...')
 				.setValue(this.plugin.settings.comprehensivePrompt)
 				.onChange(async (value) => {
 					this.plugin.settings.comprehensivePrompt = value;
@@ -2224,9 +2647,9 @@ class GeminiSettingTab extends PluginSettingTab {
 
 		new Setting(customPromptContent)
 			.setName('🎯 Deep Research Mode Prompt')
-			.setDesc('Framework: TRACE (Task, Request, Action, Context, Example). Nghiên cứu sâu đa chiều 800-1200 từ')
+			.setDesc('Framework: TRACE (Task, Request, Action, Context, Example). Multi-dimensional deep research 800-1200 words')
 			.addTextArea(text => text
-				.setPlaceholder('Nhập prompt tùy chỉnh cho chế độ nghiên cứu sâu...')
+				.setPlaceholder('Enter custom prompt for deep research mode...')
 				.setValue(this.plugin.settings.deepPrompt)
 				.onChange(async (value) => {
 					this.plugin.settings.deepPrompt = value;
@@ -2235,9 +2658,9 @@ class GeminiSettingTab extends PluginSettingTab {
 
 		new Setting(customPromptContent)
 			.setName('🧠 Reasoning Mode Prompt')
-			.setDesc('Framework: Chain-of-Thought + Meta-prompting. Phân tích logic từng bước với tự kiểm tra')
+			.setDesc('Framework: Chain-of-Thought + Meta-prompting. Step-by-step logical analysis with self-verification')
 			.addTextArea(text => text
-				.setPlaceholder('Nhập prompt tùy chỉnh cho chế độ lý luận...')
+				.setPlaceholder('Enter custom prompt for reasoning mode...')
 				.setValue(this.plugin.settings.reasoningPrompt)
 				.onChange(async (value) => {
 					this.plugin.settings.reasoningPrompt = value;
@@ -2248,7 +2671,7 @@ class GeminiSettingTab extends PluginSettingTab {
 		this.createResetButton(
 			customPromptContent,
 			'🔄 Reset to Improved Professional Prompts',
-			'Khôi phục các prompt đã được cải thiện với frameworks chuyên nghiệp',
+			'Restore enhanced prompts with professional frameworks',
 			() => {
 				// Reset to the improved default prompts from DEFAULT_SETTINGS
 				this.plugin.settings.quickPrompt = DEFAULT_SETTINGS.quickPrompt;
