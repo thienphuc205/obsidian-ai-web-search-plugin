@@ -2038,6 +2038,7 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		
 		console.log('🔧 Processing Perplexity response for citations...');
 		console.log('📝 Original content length:', content.length);
+		console.log('🔍 ResponseData keys:', Object.keys(responseData));
 		
 		// Extract citations from response data if available
 		const citations = responseData.citations || [];
@@ -2046,17 +2047,18 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		console.log('📚 Citations from API:', citations);
 		console.log('❓ Related questions from API:', relatedQuestions);
 		
-		// Add sources section if citations are available
+		// For Obsidian, we need to ensure proper markdown formatting
+		// First, make sure all citations in content are properly linked
+		enhanced = this.linkCitationsInContent(enhanced, citations);
+		
+		// Add sources section if citations are available - use Obsidian-compatible format
 		if (citations && citations.length > 0) {
-			enhanced += "\n\n---\n**Sources:**\n";
+			enhanced += "\n\n---\n\n## Sources\n\n";
 			
-			citations.forEach((citation: any, index: number) => {
-				const title = citation.title || citation.url || `Source ${index + 1}`;
-				const url = citation.url;
-				
-				if (url) {
-					enhanced += `- [${title}](${url})\n`;
-				}
+			citations.forEach((url: string, index: number) => {
+				// For Perplexity, citations are just URLs in an array
+				const title = this.extractTitleFromUrl(url) || `Source ${index + 1}`;
+				enhanced += `${index + 1}. [${title}](${url})\n`;
 			});
 		} else {
 			// If no citations in response data, extract from content and try to get sources
@@ -2066,7 +2068,7 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		
 		// Add related questions if available
 		if (relatedQuestions && relatedQuestions.length > 0) {
-			enhanced += "\n\n**Related Questions:**\n";
+			enhanced += "\n\n## Related Questions\n\n";
 			relatedQuestions.forEach((question: string) => {
 				enhanced += `- ${question}\n`;
 			});
@@ -2074,6 +2076,39 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		
 		console.log('✅ Enhanced content length:', enhanced.length);
 		return enhanced;
+	}
+
+	// Method to link citations in content with proper sources
+	linkCitationsInContent(content: string, citations: string[]): string {
+		console.log('🔗 Linking citations in content...');
+		console.log('📋 Available citations:', citations);
+		
+		// For Obsidian, we'll use a simpler approach - just keep the citations as-is
+		// and ensure they're properly linked in the Sources section
+		// Obsidian will render the markdown naturally
+		
+		return content;
+	}
+
+	// Extract readable title from URL
+	extractTitleFromUrl(url: string): string {
+		try {
+			const urlObj = new URL(url);
+			let title = urlObj.hostname.replace('www.', '');
+			
+			// Try to extract meaningful title from path
+			const pathParts = urlObj.pathname.split('/').filter(part => part && part !== '');
+			if (pathParts.length > 0) {
+				const lastPart = pathParts[pathParts.length - 1];
+				if (lastPart && !lastPart.includes('.')) {
+					title += ' - ' + lastPart.replace(/-/g, ' ').replace(/_/g, ' ');
+				}
+			}
+			
+			return title.charAt(0).toUpperCase() + title.slice(1);
+		} catch {
+			return url;
+		}
 	}
 
 	// Method to extract and format citations from content
