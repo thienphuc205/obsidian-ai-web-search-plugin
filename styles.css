@@ -451,7 +451,7 @@ If your plugin does not need CSS, delete this file.
     gap: 8px;
 }
 
-.send-button, .insert-button {
+.send-button, .save-button {
     flex: 1;
     padding: 8px 12px;
     border: none;
@@ -472,17 +472,18 @@ If your plugin does not need CSS, delete this file.
     transform: translateY(-1px);
 }
 
-.insert-button {
-    background: var(--background-modifier-border);
-    color: var(--text-normal);
+.save-button {
+    background: var(--color-green);
+    color: var(--text-on-accent);
 }
 
-.insert-button:hover {
-    background: var(--background-modifier-border-hover);
+.save-button:hover {
+    background: var(--color-green-rgb);
+    opacity: 0.8;
     transform: translateY(-1px);
 }
 
-.send-button:active, .insert-button:active {
+.send-button:active, .save-button:active {
     transform: translateY(0);
 }
 

@@ -13,6 +13,11 @@ interface GeminiWebSearchSettings {
 	maxResults: number;
 	includeImages: boolean;
 	
+	// Chat saving settings
+	chatFolderName: string;
+	chatNoteTemplate: 'timestamp-query' | 'query-timestamp' | 'query-only' | 'counter';
+	chatSaveEnabled: boolean;
+	
 	// Research-mode-specific Gemini parameters
 	quick: {
 		geminiTemperature: number;
@@ -129,6 +134,11 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	insertMode: 'replace',
 	maxResults: 5,
 	includeImages: false,
+	
+	// Chat saving settings
+	chatFolderName: 'AI Web Search Chats',
+	chatNoteTemplate: 'timestamp-query',
+	chatSaveEnabled: true,
 	
 	// Research-mode-specific Gemini parameters
 	quick: {
@@ -556,9 +566,10 @@ export class GeminiChatView extends ItemView {
 			text: 'Send'
 		});
 
-		const insertButton = buttonGroup.createEl('button', {
-			cls: 'insert-button', 
-			text: 'Send & Insert'
+		const saveButton = buttonGroup.createEl('button', {
+			cls: 'save-button', 
+			text: 'Send & Save',
+			attr: { title: 'Send query and save chat to folder' }
 		});
 
 		// Research Mode Buttons - moved to bottom
@@ -628,7 +639,7 @@ export class GeminiChatView extends ItemView {
 
 		// Event listeners
 		sendButton.onclick = () => this.handleSend(textarea.value, false);
-		insertButton.onclick = () => this.handleSend(textarea.value, true);
+		saveButton.onclick = () => this.handleSend(textarea.value, false, true);
 		
 		textarea.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter' && !e.shiftKey) {
@@ -638,7 +649,7 @@ export class GeminiChatView extends ItemView {
 		});
 	}
 
-	async handleSend(message: string, insertToNote: boolean) {
+	async handleSend(message: string, insertToNote: boolean, saveToFolder: boolean = false) {
 		if (!message.trim()) return;
 
 		// Clear input
@@ -662,9 +673,117 @@ export class GeminiChatView extends ItemView {
 				this.insertToActiveNote(response);
 			}
 
+			// Save to folder if requested
+			if (saveToFolder && this.plugin.settings.chatSaveEnabled) {
+				await this.saveToFolder();
+			}
+
 		} catch (error) {
 			this.updateMessage(thinkingId, `Error: ${error instanceof Error ? error.message : String(error)}`);
 		}
+	}
+
+	async saveToFolder(): Promise<void> {
+		try {
+			const folderPath = this.plugin.settings.chatFolderName;
+			const vault = this.app.vault;
+
+			// Ensure folder exists
+			const folder = vault.getAbstractFileByPath(folderPath);
+			if (!folder) {
+				await vault.createFolder(folderPath);
+			}
+
+			// Generate filename based on template
+			const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+			const firstUserMessage = this.getFirstUserMessage() || 'chat';
+			const query = firstUserMessage.slice(0, 50).replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+			
+			let filename: string;
+			switch (this.plugin.settings.chatNoteTemplate) {
+				case 'timestamp-query':
+					filename = `${timestamp}-${query}`;
+					break;
+				case 'query-timestamp':
+					filename = `${query}-${timestamp}`;
+					break;
+				case 'query-only':
+					filename = query;
+					break;
+				case 'counter':
+					// For counter, we'll generate it based on existing files
+					const existingFiles = vault.getMarkdownFiles().filter(f => 
+						f.path.startsWith(folderPath) && f.basename.startsWith('chat-')
+					);
+					filename = `chat-${existingFiles.length + 1}`;
+					break;
+				default:
+					filename = `${timestamp}-${query}`;
+			}
+
+			// Ensure unique filename
+			let uniqueFilename = `${filename}.md`;
+			let counter = 1;
+			while (vault.getAbstractFileByPath(`${folderPath}/${uniqueFilename}`)) {
+				uniqueFilename = `${filename}-${counter}.md`;
+				counter++;
+			}
+
+			// Format chat content
+			const chatContent = this.formatChatNote();
+			
+			// Create the note
+			const filePath = `${folderPath}/${uniqueFilename}`;
+			await vault.create(filePath, chatContent);
+
+			// Show success message
+			new Notice(`Chat saved to: ${filePath}`);
+
+		} catch (error) {
+			new Notice(`Failed to save chat: ${error instanceof Error ? error.message : String(error)}`);
+			console.error('Save to folder error:', error);
+		}
+	}
+
+	formatChatNote(): string {
+		const timestamp = new Date().toLocaleString();
+		const provider = this.plugin.settings.provider;
+		const researchMode = this.currentResearchMode;
+		
+		let content = `# AI Web Search Chat\n\n`;
+		content += `**Date:** ${timestamp}\n`;
+		content += `**Provider:** ${provider}\n`;
+		content += `**Research Mode:** ${researchMode}\n\n`;
+		content += `---\n\n`;
+
+		// Extract messages from DOM
+		const messageElements = this.messageContainer.querySelectorAll('.message');
+		messageElements.forEach((messageEl) => {
+			const roleEl = messageEl.querySelector('.message-role');
+			const contentEl = messageEl.querySelector('.message-content');
+			
+			if (roleEl && contentEl) {
+				const role = roleEl.textContent?.trim();
+				const messageContent = contentEl.textContent?.trim() || '';
+				
+				if (role === 'You') {
+					content += `## 🙋 You\n\n${messageContent}\n\n`;
+				} else if (role === 'AI Assistant' && !messageContent.includes('Searching the web...')) {
+					content += `## 🤖 AI Assistant\n\n${messageContent}\n\n`;
+				}
+			}
+		});
+
+		content += `\n---\n*Generated by AI Web Search Plugin*`;
+		return content;
+	}
+
+	getFirstUserMessage(): string {
+		const userMessages = this.messageContainer.querySelectorAll('.message.user .message-content');
+		if (userMessages.length > 0) {
+			return userMessages[0].textContent?.trim() || '';
+		}
+		return '';
 	}
 
 	addMessage(role: 'user' | 'assistant' | 'system', content: string, isThinking: boolean = false): string {
@@ -2020,6 +2139,9 @@ class GeminiSettingTab extends PluginSettingTab {
 		// Advanced sections for each provider
 		this.addAdvancedProviderSettings(containerEl);
 
+		// Chat saving settings section
+		this.addChatSavingSettings(containerEl);
+
 		// Preset configurations section
 		this.addPresetConfigurations(containerEl);
 	}
@@ -2971,6 +3093,64 @@ class GeminiSettingTab extends PluginSettingTab {
 				Object.assign(this.plugin.settings, DEFAULT_SETTINGS);
 			}
 		);
+	}
+
+	// Chat saving settings
+	addChatSavingSettings(containerEl: HTMLElement) {
+		const { contentEl: chatContent } = this.createCollapsibleSection(
+			containerEl,
+			'💾 Chat Saving',
+			'Save chat conversations as notes in your vault',
+			'chat-saving',
+			false
+		);
+
+		// Enable chat saving
+		new Setting(chatContent)
+			.setName('Enable Chat Saving')
+			.setDesc('Allow saving chat conversations to your vault')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.chatSaveEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.chatSaveEnabled = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide other options
+				}));
+
+		if (this.plugin.settings.chatSaveEnabled) {
+			// Folder name setting
+			new Setting(chatContent)
+				.setName('Chat Folder Name')
+				.setDesc('Folder where chat conversations will be saved')
+				.addText(text => text
+					.setPlaceholder('AI Web Search Chats')
+					.setValue(this.plugin.settings.chatFolderName)
+					.onChange(async (value) => {
+						this.plugin.settings.chatFolderName = value || 'AI Web Search Chats';
+						await this.plugin.saveSettings();
+					}));
+
+			// Note template setting
+			new Setting(chatContent)
+				.setName('Note Naming Template')
+				.setDesc('How to name saved chat notes')
+				.addDropdown(dropdown => dropdown
+					.addOption('timestamp-query', 'Timestamp + Query (2024-01-15-12-30-how-to-cook)')
+					.addOption('query-timestamp', 'Query + Timestamp (how-to-cook-2024-01-15-12-30)')
+					.addOption('query-only', 'Query Only (how-to-cook)')
+					.addOption('counter', 'Counter Only (chat-1, chat-2, ...)')
+					.setValue(this.plugin.settings.chatNoteTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.chatNoteTemplate = value as 'timestamp-query' | 'query-timestamp' | 'query-only' | 'counter';
+						await this.plugin.saveSettings();
+					}));
+
+			// Help text
+			chatContent.createEl('div', {
+				cls: 'settings-help-text',
+				text: '💡 Use the "Send & Save" button in the chat interface to save conversations. Saved notes will include metadata, timestamps, and full conversation history.'
+			});
+		}
 	}
 
 	// Additional methods for specific provider advanced settings
