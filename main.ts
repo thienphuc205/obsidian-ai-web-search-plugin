@@ -2,10 +2,11 @@ import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, r
 
 // Enhanced settings with multiple providers and advanced parameters
 interface GeminiWebSearchSettings {
-	provider: 'gemini' | 'perplexity' | 'tavily';
+	provider: 'gemini' | 'perplexity' | 'tavily' | 'exa';
 	geminiApiKey: string;
 	perplexityApiKey: string;
 	tavilyApiKey: string;
+	exaApiKey: string;
 	geminiModel: string;
 	perplexityModel: string;
 	insertMode: 'replace' | 'append';
@@ -24,6 +25,19 @@ interface GeminiWebSearchSettings {
 	perplexityTopK: number;
 	perplexityMaxTokens: number;
 	
+	// Advanced Exa parameters
+	exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast';
+	exaCategory: string;
+	exaIncludeDomains: string[];
+	exaExcludeDomains: string[];
+	exaStartDate: string;
+	exaEndDate: string;
+	exaIncludeText: string[];
+	exaExcludeText: string[];
+	exaGetText: boolean;
+	exaGetHighlights: boolean;
+	exaGetSummary: boolean;
+	
 	// Custom prompts
 	enableCustomPrompts: boolean;
 	quickPrompt: string;
@@ -37,6 +51,7 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	geminiApiKey: '',
 	perplexityApiKey: '',
 	tavilyApiKey: '',
+	exaApiKey: '',
 	geminiModel: 'gemini-2.5-flash',
 	perplexityModel: 'sonar-pro',
 	insertMode: 'replace',
@@ -54,6 +69,19 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	perplexityTopP: 0.9,
 	perplexityTopK: 50,
 	perplexityMaxTokens: 2000,
+	
+	// Advanced Exa parameters (optimal defaults from docs)
+	exaSearchType: 'auto',
+	exaCategory: '',
+	exaIncludeDomains: [],
+	exaExcludeDomains: [],
+	exaStartDate: '',
+	exaEndDate: '',
+	exaIncludeText: [],
+	exaExcludeText: [],
+	exaGetText: true,
+	exaGetHighlights: true,
+	exaGetSummary: true,
 	
 	// Custom prompts
 	enableCustomPrompts: false,
@@ -78,6 +106,8 @@ export class GeminiChatView extends ItemView {
 		description: string;
 		model: string;
 		perplexityModel: string;
+		exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast';
+		exaCategory: string;
 	};
 
 	constructor(leaf: WorkspaceLeaf, plugin: GeminiWebSearchPlugin) {
@@ -130,13 +160,17 @@ export class GeminiChatView extends ItemView {
 			value: 'tavily', 
 			text: `Tavily Search ${this.checkApiKey('tavily') ? '✓' : '⚠️'}`
 		});
+		const exaOption = providerDropdown.createEl('option', { 
+			value: 'exa', 
+			text: `Exa AI Search ${this.checkApiKey('exa') ? '✓' : '⚠️'}`
+		});
 
 		// Set current value
 		providerDropdown.value = this.plugin.settings.provider;
 
 		// Handle provider change
 		providerDropdown.addEventListener('change', async (e) => {
-			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily';
+			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily' | 'exa';
 			this.plugin.settings.provider = newProvider;
 			await this.plugin.saveSettings();
 			
@@ -162,7 +196,9 @@ export class GeminiChatView extends ItemView {
 			label: '🔍 Comprehensive',
 			description: 'Balanced research with detailed analysis',
 			model: 'gemini-2.5-flash',
-			perplexityModel: 'sonar-pro'
+			perplexityModel: 'sonar-pro',
+			exaSearchType: 'auto',
+			exaCategory: ''
 		};
 
 		// Welcome message
@@ -174,7 +210,7 @@ export class GeminiChatView extends ItemView {
 		}
 	}
 
-	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string}) {
+	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string, exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast', exaCategory: string}) {
 		this.currentResearchMode = mode;
 		
 		// Update button states for bottom buttons
@@ -191,6 +227,9 @@ export class GeminiChatView extends ItemView {
 			this.plugin.settings.geminiModel = mode.model;
 		} else if (this.plugin.settings.provider === 'perplexity') {
 			this.plugin.settings.perplexityModel = mode.perplexityModel;
+		} else if (this.plugin.settings.provider === 'exa') {
+			this.plugin.settings.exaSearchType = mode.exaSearchType;
+			this.plugin.settings.exaCategory = mode.exaCategory;
 		}
 		
 		this.plugin.saveSettings();
@@ -236,28 +275,36 @@ export class GeminiChatView extends ItemView {
 				label: '⚡ Quick',
 				description: 'Fast answers',
 				model: 'gemini-2.5-flash-lite',
-				perplexityModel: 'sonar'
+				perplexityModel: 'sonar',
+				exaSearchType: 'fast' as const,
+				exaCategory: ''
 			},
 			{
 				id: 'comprehensive',
 				label: '🔍 Comprehensive',
 				description: 'Balanced research',
 				model: 'gemini-2.5-flash',
-				perplexityModel: 'sonar-pro'
+				perplexityModel: 'sonar-pro',
+				exaSearchType: 'auto' as const,
+				exaCategory: ''
 			},
 			{
 				id: 'deep',
 				label: '🎯 Deep',
 				description: 'Expert analysis',
 				model: 'gemini-2.5-pro',
-				perplexityModel: 'sonar-deep-research'
+				perplexityModel: 'sonar-deep-research',
+				exaSearchType: 'neural' as const,
+				exaCategory: 'research paper'
 			},
 			{
 				id: 'reasoning',
 				label: '🧠 Reasoning',
 				description: 'Complex analysis',
 				model: 'gemini-2.5-pro',
-				perplexityModel: 'sonar-reasoning'
+				perplexityModel: 'sonar-reasoning',
+				exaSearchType: 'neural' as const,
+				exaCategory: 'research paper'
 			}
 		];
 
@@ -410,7 +457,7 @@ export class GeminiChatView extends ItemView {
 		}
 	}
 
-	checkApiKey(provider: 'gemini' | 'perplexity' | 'tavily'): boolean {
+	checkApiKey(provider: 'gemini' | 'perplexity' | 'tavily' | 'exa'): boolean {
 		switch (provider) {
 			case 'gemini':
 				return !!this.plugin.settings.geminiApiKey;
@@ -418,6 +465,8 @@ export class GeminiChatView extends ItemView {
 				return !!this.plugin.settings.perplexityApiKey;
 			case 'tavily':
 				return !!this.plugin.settings.tavilyApiKey;
+			case 'exa':
+				return !!this.plugin.settings.exaApiKey;
 			default:
 				return false;
 		}
@@ -596,6 +645,8 @@ export default class GeminiWebSearchPlugin extends Plugin {
 				return this.searchWithPerplexity(query);
 			case 'tavily':
 				return this.searchWithTavily(query);
+			case 'exa':
+				return this.searchWithExa(query);
 			default:
 				throw new Error('Invalid provider');
 		}
@@ -808,6 +859,171 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		return result;
 	}
 
+	async searchWithExa(query: string): Promise<string> {
+		if (!this.settings.exaApiKey) {
+			throw new Error('Exa API key not configured');
+		}
+
+		// Get current research mode from chat view
+		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+		const researchMode = chatView?.currentResearchMode;
+
+		// Map research modes to Exa search types and configurations
+		let searchType = this.settings.exaSearchType;
+		let numResults = this.settings.maxResults;
+		let category = this.settings.exaCategory;
+
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					searchType = 'fast'; // Use fast search for quick mode (425ms latency)
+					numResults = Math.min(this.settings.maxResults, 3);
+					break;
+				case 'comprehensive':
+					searchType = 'auto'; // Auto intelligently combines neural+keyword
+					numResults = this.settings.maxResults;
+					break;
+				case 'deep':
+					searchType = 'neural'; // Neural search for semantic understanding
+					numResults = Math.max(this.settings.maxResults, 8);
+					category = researchMode.exaCategory || 'research paper'; // Focus on research papers
+					break;
+				case 'reasoning':
+					searchType = 'neural'; // Neural for complex analysis
+					numResults = this.settings.maxResults;
+					category = researchMode.exaCategory || 'research paper'; // Academic sources
+					break;
+			}
+		}
+
+		// Build request body according to Exa API specification
+		const requestBody: any = {
+			query: query,
+			type: searchType,
+			numResults: Math.min(numResults, 100), // Exa limit is 100
+			contents: {
+				text: this.settings.exaGetText,
+				highlights: this.settings.exaGetHighlights,
+				summary: this.settings.exaGetSummary
+			}
+		};
+
+		// Add optional parameters if configured
+		if (category) {
+			requestBody.category = category;
+		}
+
+		if (this.settings.exaIncludeDomains.length > 0) {
+			requestBody.includeDomains = this.settings.exaIncludeDomains;
+		}
+
+		if (this.settings.exaExcludeDomains.length > 0) {
+			requestBody.excludeDomains = this.settings.exaExcludeDomains;
+		}
+
+		if (this.settings.exaStartDate) {
+			requestBody.startPublishedDate = this.settings.exaStartDate;
+		}
+
+		if (this.settings.exaEndDate) {
+			requestBody.endPublishedDate = this.settings.exaEndDate;
+		}
+
+		if (this.settings.exaIncludeText.length > 0) {
+			requestBody.includeText = this.settings.exaIncludeText;
+		}
+
+		if (this.settings.exaExcludeText.length > 0) {
+			requestBody.excludeText = this.settings.exaExcludeText;
+		}
+
+		try {
+			const response = await requestUrl({
+				url: 'https://api.exa.ai/search',
+				method: 'POST',
+				headers: {
+					'x-api-key': this.settings.exaApiKey,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			const data = response.json;
+
+			if (!data.results || data.results.length === 0) {
+				return "No results found for your query.";
+			}
+
+			// Format results with rich content
+			let result = `# Search Results for: "${query}"\n\n`;
+
+			// Add search type info
+			result += `*Search performed using **${data.resolvedSearchType || searchType}** search (${data.results.length} results)*\n\n`;
+
+			// Process results
+			data.results.forEach((item: any, index: number) => {
+				result += `## ${index + 1}. ${item.title}\n\n`;
+				
+				if (item.summary && this.settings.exaGetSummary) {
+					result += `**Summary:** ${item.summary}\n\n`;
+				}
+
+				if (item.text && this.settings.exaGetText) {
+					// Truncate long text for readability
+					const truncatedText = item.text.length > 800 
+						? item.text.substring(0, 800) + "..." 
+						: item.text;
+					result += `${truncatedText}\n\n`;
+				}
+
+				if (item.highlights && item.highlights.length > 0 && this.settings.exaGetHighlights) {
+					result += `**Key Highlights:**\n`;
+					item.highlights.forEach((highlight: string) => {
+						result += `- *${highlight}*\n`;
+					});
+					result += `\n`;
+				}
+
+				if (item.author) {
+					result += `**Author:** ${item.author}\n`;
+				}
+
+				if (item.publishedDate) {
+					const date = new Date(item.publishedDate).toLocaleDateString();
+					result += `**Published:** ${date}\n`;
+				}
+
+				if (item.score) {
+					result += `**Relevance Score:** ${(item.score * 100).toFixed(1)}%\n`;
+				}
+
+				result += `**Source:** [${item.url}](${item.url})\n\n`;
+				result += `---\n\n`;
+			});
+
+			// Add sources section
+			result += `## Sources\n\n`;
+			data.results.forEach((item: any, index: number) => {
+				result += `${index + 1}. [${item.title}](${item.url})`;
+				if (item.author) {
+					result += ` - ${item.author}`;
+				}
+				result += `\n`;
+			});
+
+			// Add cost information if available
+			if (data.costDollars) {
+				result += `\n*Search cost: $${data.costDollars.total.toFixed(4)}*\n`;
+			}
+
+			return result;
+
+		} catch (error) {
+			console.error('Exa search error:', error);
+			throw new Error(`Exa search failed: ${error.message}`);
+		}
+	}
+
 	// Keep existing method for text selection
 	async performWebSearchAndInsert(query: string, editor: Editor) {
 		try {
@@ -865,8 +1081,9 @@ class GeminiSettingTab extends PluginSettingTab {
 				.addOption('gemini', 'Google Gemini (with Google Search)')
 				.addOption('perplexity', 'Perplexity (Real-time Search)')
 				.addOption('tavily', 'Tavily (Advanced Web Search)')
+				.addOption('exa', 'Exa (AI-powered Semantic Search)')
 				.setValue(this.plugin.settings.provider)
-				.onChange(async (value: 'gemini' | 'perplexity' | 'tavily') => {
+				.onChange(async (value: 'gemini' | 'perplexity' | 'tavily' | 'exa') => {
 					this.plugin.settings.provider = value;
 					await this.plugin.saveSettings();
 					this.display(); // Refresh to show relevant API key field
@@ -928,6 +1145,11 @@ class GeminiSettingTab extends PluginSettingTab {
 			this.addTavilySettings(containerEl);
 		}
 
+		// Exa settings
+		if (this.plugin.settings.provider === 'exa') {
+			this.addExaSettings(containerEl);
+		}
+
 		// Always show all API keys for easy setup
 		containerEl.createEl('h4', {text: 'Additional API Keys (Optional)'});
 		
@@ -966,6 +1188,19 @@ class GeminiSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.tavilyApiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.tavilyApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		if (this.plugin.settings.provider !== 'exa') {
+			new Setting(containerEl)
+				.setName('Exa API Key')
+				.setDesc('Optional: Get from dashboard.exa.ai')
+				.addText(text => text
+					.setPlaceholder('Enter Exa API key')
+					.setValue(this.plugin.settings.exaApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.exaApiKey = value;
 						await this.plugin.saveSettings();
 					}));
 		}
@@ -1141,6 +1376,170 @@ class GeminiSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.tavilyApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.tavilyApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	addExaSettings(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName('Exa API Key')
+			.setDesc('Get your API key from dashboard.exa.ai ($10 free credits)')
+			.addText(text => text
+				.setPlaceholder('Enter your Exa API key')
+				.setValue(this.plugin.settings.exaApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.exaApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Advanced Exa Parameters
+		containerEl.createEl('h4', {text: 'Advanced Exa Parameters'});
+
+		new Setting(containerEl)
+			.setName('Search Type')
+			.setDesc('Neural = semantic search, Keyword = traditional, Auto = intelligent blend, Fast = optimized speed (425ms)')
+			.addDropdown(dropdown => dropdown
+				.addOption('auto', 'Auto (Recommended)')
+				.addOption('neural', 'Neural (Semantic)')
+				.addOption('keyword', 'Keyword (Traditional)')
+				.addOption('fast', 'Fast (425ms latency)')
+				.setValue(this.plugin.settings.exaSearchType)
+				.onChange(async (value: 'auto' | 'neural' | 'keyword' | 'fast') => {
+					this.plugin.settings.exaSearchType = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Content Category')
+			.setDesc('Filter results by content type (leave empty for all)')
+			.addDropdown(dropdown => dropdown
+				.addOption('', 'All Categories')
+				.addOption('company', 'Company')
+				.addOption('research paper', 'Research Paper')
+				.addOption('news', 'News')
+				.addOption('pdf', 'PDF Documents')
+				.addOption('github', 'GitHub')
+				.addOption('tweet', 'Twitter')
+				.addOption('personal site', 'Personal Site')
+				.addOption('linkedin profile', 'LinkedIn Profile')
+				.addOption('financial report', 'Financial Report')
+				.setValue(this.plugin.settings.exaCategory)
+				.onChange(async (value) => {
+					this.plugin.settings.exaCategory = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Content extraction settings
+		containerEl.createEl('h5', {text: 'Content Extraction'});
+
+		new Setting(containerEl)
+			.setName('Get Full Text')
+			.setDesc('Extract full text content from pages')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.exaGetText)
+				.onChange(async (value) => {
+					this.plugin.settings.exaGetText = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Get Highlights')
+			.setDesc('Extract key highlights from content')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.exaGetHighlights)
+				.onChange(async (value) => {
+					this.plugin.settings.exaGetHighlights = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Get Summary')
+			.setDesc('Generate AI summaries of content')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.exaGetSummary)
+				.onChange(async (value) => {
+					this.plugin.settings.exaGetSummary = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Advanced filtering
+		containerEl.createEl('h5', {text: 'Advanced Filtering'});
+
+		new Setting(containerEl)
+			.setName('Include Domains')
+			.setDesc('Comma-separated list of domains to include (e.g., arxiv.org, github.com)')
+			.addText(text => text
+				.setPlaceholder('arxiv.org, github.com')
+				.setValue(this.plugin.settings.exaIncludeDomains.join(', '))
+				.onChange(async (value) => {
+					this.plugin.settings.exaIncludeDomains = value
+						.split(',')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Exclude Domains')
+			.setDesc('Comma-separated list of domains to exclude')
+			.addText(text => text
+				.setPlaceholder('reddit.com, quora.com')
+				.setValue(this.plugin.settings.exaExcludeDomains.join(', '))
+				.onChange(async (value) => {
+					this.plugin.settings.exaExcludeDomains = value
+						.split(',')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Start Date Filter')
+			.setDesc('Only include content published after this date (YYYY-MM-DD)')
+			.addText(text => text
+				.setPlaceholder('2024-01-01')
+				.setValue(this.plugin.settings.exaStartDate)
+				.onChange(async (value) => {
+					this.plugin.settings.exaStartDate = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('End Date Filter')
+			.setDesc('Only include content published before this date (YYYY-MM-DD)')
+			.addText(text => text
+				.setPlaceholder('2024-12-31')
+				.setValue(this.plugin.settings.exaEndDate)
+				.onChange(async (value) => {
+					this.plugin.settings.exaEndDate = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Include Text')
+			.setDesc('Comma-separated strings that must be present in results (max 5 words each)')
+			.addText(text => text
+				.setPlaceholder('machine learning, artificial intelligence')
+				.setValue(this.plugin.settings.exaIncludeText.join(', '))
+				.onChange(async (value) => {
+					this.plugin.settings.exaIncludeText = value
+						.split(',')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Exclude Text')
+			.setDesc('Comma-separated strings that must NOT be present in results (max 5 words each)')
+			.addText(text => text
+				.setPlaceholder('course, tutorial')
+				.setValue(this.plugin.settings.exaExcludeText.join(', '))
+				.onChange(async (value) => {
+					this.plugin.settings.exaExcludeText = value
+						.split(',')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
 					await this.plugin.saveSettings();
 				}));
 	}
