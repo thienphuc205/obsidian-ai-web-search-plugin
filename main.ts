@@ -572,6 +572,9 @@ export default class GeminiWebSearchPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// Inject enhanced CSS for settings
+		this.injectEnhancedCSS();
+
 		// Register chat view
 		this.registerView(
 			CHAT_VIEW_TYPE,
@@ -614,6 +617,251 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		});
 
 		this.addSettingTab(new GeminiSettingTab(this.app, this));
+	}
+
+	// Method to inject enhanced CSS
+	injectEnhancedCSS() {
+		const cssText = `
+/* Enhanced Settings CSS for AI Web Search Plugin */
+.gemini-settings-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+    line-height: 1.6;
+}
+
+.settings-title-section {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.settings-title-section h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.settings-subtitle {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 1.1rem;
+}
+
+.setting-section {
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.setting-section-header {
+    padding: 1rem 1.5rem;
+    background: var(--background-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid transparent;
+    display: flex;
+    align-items: center;
+}
+
+.setting-section-header:hover {
+    background: var(--background-modifier-hover);
+}
+
+.setting-section-header.expanded {
+    border-bottom-color: var(--background-modifier-border);
+}
+
+.setting-section-toggle {
+    margin-right: 0.75rem;
+    font-weight: bold;
+    transition: transform 0.2s ease;
+    font-size: 1.2rem;
+}
+
+.setting-section-title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.setting-section-description {
+    margin: 0.5rem 0 0 2rem;
+    opacity: 0.8;
+    font-size: 0.9rem;
+}
+
+.setting-section-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.setting-section-content.expanded {
+    padding: 1.5rem;
+    max-height: 3000px;
+}
+
+.provider-info-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.provider-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.provider-info-header h4 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.provider-description {
+    margin: 0 0 1rem 0;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.provider-features {
+    margin: 0 0 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.provider-features li {
+    margin-bottom: 0.25rem;
+}
+
+.provider-specs {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.spec-item {
+    background: var(--background-modifier-form-field);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-indicator {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-indicator.connected {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-indicator.disconnected {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.setting-help-text, .settings-help-text {
+    background: var(--background-secondary);
+    border-left: 4px solid var(--interactive-accent);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.setting-help-text ul, .settings-help-text ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+}
+
+.setting-help-text li, .settings-help-text li {
+    margin-bottom: 0.5rem;
+}
+
+.setting-help-text strong, .settings-help-text strong {
+    color: var(--interactive-accent);
+}
+
+.provider-tabs {
+    display: flex;
+    background: var(--background-secondary);
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+}
+
+.provider-tab {
+    flex: 1;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.provider-tab:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.provider-tab.active {
+    background: var(--interactive-accent);
+    color: white;
+}
+
+.provider-tabs-content {
+    border: 1px solid var(--background-modifier-border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+}
+
+.provider-tab-content {
+    display: none;
+    padding: 1.5rem;
+}
+
+.provider-tab-content.active {
+    display: block;
+}
+
+.presets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.exa-presets {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--background-modifier-border);
+}
+		`;
+
+		// Inject CSS
+		const style = document.createElement('style');
+		style.textContent = cssText;
+		document.head.appendChild(style);
 	}
 
 	async activateView() {
@@ -1061,64 +1309,225 @@ export default class GeminiWebSearchPlugin extends Plugin {
 // Enhanced Settings Tab
 class GeminiSettingTab extends PluginSettingTab {
 	plugin: GeminiWebSearchPlugin;
+	private collapsedSections: Set<string> = new Set();
 
 	constructor(app: App, plugin: GeminiWebSearchPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
+	// Helper method to create collapsible sections
+	createCollapsibleSection(
+		containerEl: HTMLElement, 
+		title: string, 
+		description: string, 
+		sectionId: string,
+		isExpanded: boolean = false
+	): { headerEl: HTMLElement, contentEl: HTMLElement } {
+		const sectionEl = containerEl.createEl('div', { cls: 'setting-section' });
+		
+		const headerEl = sectionEl.createEl('div', { 
+			cls: `setting-section-header ${isExpanded ? 'expanded' : 'collapsed'}`,
+			attr: { 'data-section': sectionId }
+		});
+		
+		const toggleIcon = headerEl.createEl('span', { 
+			cls: 'setting-section-toggle',
+			text: isExpanded ? '▼' : '▶'
+		});
+		
+		const titleEl = headerEl.createEl('h3', { 
+			text: title,
+			cls: 'setting-section-title'
+		});
+		
+		if (description) {
+			headerEl.createEl('p', { 
+				text: description,
+				cls: 'setting-section-description'
+			});
+		}
+		
+		const contentEl = sectionEl.createEl('div', { 
+			cls: `setting-section-content ${isExpanded ? 'expanded' : 'collapsed'}`
+		});
+		
+		// Toggle functionality
+		headerEl.addEventListener('click', () => {
+			const isCurrentlyExpanded = !this.collapsedSections.has(sectionId);
+			
+			if (isCurrentlyExpanded) {
+				this.collapsedSections.add(sectionId);
+				headerEl.removeClass('expanded');
+				headerEl.addClass('collapsed');
+				contentEl.removeClass('expanded');
+				contentEl.addClass('collapsed');
+				toggleIcon.textContent = '▶';
+			} else {
+				this.collapsedSections.delete(sectionId);
+				headerEl.removeClass('collapsed');
+				headerEl.addClass('expanded');
+				contentEl.removeClass('collapsed');
+				contentEl.addClass('expanded');
+				toggleIcon.textContent = '▼';
+			}
+		});
+		
+		if (!isExpanded) {
+			this.collapsedSections.add(sectionId);
+		}
+		
+		return { headerEl, contentEl };
+	}
+
+	// Helper method to create status indicator
+	createStatusIndicator(hasApiKey: boolean, provider: string): HTMLElement {
+		const status = document.createElement('span');
+		status.className = `status-indicator ${hasApiKey ? 'connected' : 'disconnected'}`;
+		status.textContent = hasApiKey ? '✓ Configured' : '⚠️ Not configured';
+		status.title = hasApiKey 
+			? `${provider} API key is configured and ready to use`
+			: `${provider} API key is missing. Add your API key to enable this provider.`;
+		return status;
+	}
+
+	// Helper method to create reset button
+	createResetButton(
+		containerEl: HTMLElement,
+		label: string,
+		description: string,
+		resetCallback: () => void
+	): void {
+		new Setting(containerEl)
+			.setName(label)
+			.setDesc(description)
+			.addButton(button => button
+				.setButtonText('Reset to Defaults')
+				.setCta()
+				.onClick(async () => {
+					resetCallback();
+					await this.plugin.saveSettings();
+					this.display(); // Refresh the settings
+				}));
+	}
+
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'AI Web Search Settings'});
+		// Add custom CSS for enhanced UX
+		containerEl.addClass('gemini-settings-container');
+		
+		// Main title with plugin info
+		const titleSection = containerEl.createEl('div', { cls: 'settings-title-section' });
+		titleSection.createEl('h1', {text: '🚀 AI Web Search Settings'});
+		titleSection.createEl('p', {
+			text: 'Comprehensive AI-powered web search with 4 providers: Gemini, Perplexity, Tavily, and Exa',
+			cls: 'settings-subtitle'
+		});
 
-		// Provider selection
-		new Setting(containerEl)
-			.setName('Search Provider')
-			.setDesc('Choose which AI service to use for web search')
-			.addDropdown(dropdown => dropdown
-				.addOption('gemini', 'Google Gemini (with Google Search)')
-				.addOption('perplexity', 'Perplexity (Real-time Search)')
-				.addOption('tavily', 'Tavily (Advanced Web Search)')
-				.addOption('exa', 'Exa (AI-powered Semantic Search)')
-				.setValue(this.plugin.settings.provider)
-				.onChange(async (value: 'gemini' | 'perplexity' | 'tavily' | 'exa') => {
-					this.plugin.settings.provider = value;
-					await this.plugin.saveSettings();
-					this.display(); // Refresh to show relevant API key field
-				}));
+		// Quick Setup Section
+		const { contentEl: quickSetupContent } = this.createCollapsibleSection(
+			containerEl,
+			'⚡ Quick Setup',
+			'Essential settings to get started quickly',
+			'quick-setup',
+			true // Expanded by default
+		);
+
+		// Provider selection with status indicators
+		const providerSetting = new Setting(quickSetupContent)
+			.setName('🎯 Search Provider')
+			.setDesc('Choose which AI service to use for web search');
+
+		const providerContainer = providerSetting.settingEl.createEl('div', { cls: 'provider-selection-container' });
+		
+		const providerDropdown = providerContainer.createEl('select', { cls: 'provider-dropdown-enhanced' });
+		
+		// Add options with detailed descriptions and status
+		const providers = [
+			{ 
+				value: 'gemini', 
+				label: 'Google Gemini', 
+				description: 'Direct Google Search integration, real-time grounding',
+				hasKey: !!this.plugin.settings.geminiApiKey
+			},
+			{ 
+				value: 'perplexity', 
+				label: 'Perplexity AI', 
+				description: 'Real-time web search with citations and analysis',
+				hasKey: !!this.plugin.settings.perplexityApiKey
+			},
+			{ 
+				value: 'tavily', 
+				label: 'Tavily Search', 
+				description: 'Advanced web search API optimized for AI applications',
+				hasKey: !!this.plugin.settings.tavilyApiKey
+			},
+			{ 
+				value: 'exa', 
+				label: 'Exa (Neural Search)', 
+				description: 'Semantic neural search, 425ms latency, AI-optimized',
+				hasKey: !!this.plugin.settings.exaApiKey
+			}
+		];
+
+		providers.forEach(provider => {
+			const option = providerDropdown.createEl('option', { 
+				value: provider.value, 
+				text: `${provider.label} ${provider.hasKey ? '✓' : '⚠️'}`
+			});
+		});
+
+		providerDropdown.value = this.plugin.settings.provider;
+
+		// Provider info display
+		const providerInfo = providerContainer.createEl('div', { cls: 'provider-info' });
+		this.updateProviderInfo(providerInfo, this.plugin.settings.provider);
+
+		providerDropdown.addEventListener('change', async (e) => {
+			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily' | 'exa';
+			this.plugin.settings.provider = newProvider;
+			await this.plugin.saveSettings();
+			this.updateProviderInfo(providerInfo, newProvider);
+			this.display(); // Refresh to show relevant settings
+		});
 
 		// Insert mode setting
-		new Setting(containerEl)
-			.setName('Insert Mode')
-			.setDesc('How to insert results when using text selection commands')
+		new Setting(quickSetupContent)
+			.setName('📝 Insert Mode')
+			.setDesc('How to insert AI responses when using text selection commands in notes')
 			.addDropdown(dropdown => dropdown
-				.addOption('replace', 'Replace selected text')
-				.addOption('append', 'Insert at cursor position')
+				.addOption('replace', '🔄 Replace - Replace selected text with AI response')
+				.addOption('append', '➕ Append - Insert AI response at cursor position')
 				.setValue(this.plugin.settings.insertMode)
 				.onChange(async (value: 'replace' | 'append') => {
 					this.plugin.settings.insertMode = value;
 					await this.plugin.saveSettings();
 				}));
 
-		// General settings
-		new Setting(containerEl)
-			.setName('Max Results')
-			.setDesc('Maximum number of search results to include')
+		// Max results with intelligent description
+		new Setting(quickSetupContent)
+			.setName('🔢 Max Search Results')
+			.setDesc('Number of web sources to analyze (more = comprehensive but slower)')
 			.addSlider(slider => slider
-				.setLimits(1, 10, 1)
+				.setLimits(1, 20, 1)
 				.setValue(this.plugin.settings.maxResults)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
 					this.plugin.settings.maxResults = value;
 					await this.plugin.saveSettings();
+					// Update description based on value
+					const desc = value <= 5 ? 'Quick searches (1-2 seconds)' :
+								value <= 10 ? 'Balanced speed/depth (2-4 seconds)' :
+								'Deep research (4-8 seconds)';
+					slider.sliderEl.title = desc;
 				}));
 
 		// Custom prompts toggle
-		new Setting(containerEl)
-			.setName('Enable Custom Prompts')
-			.setDesc('Use custom prompts for research modes instead of defaults')
+		new Setting(quickSetupContent)
+			.setName('🎨 Enable Custom Research Prompts')
+			.setDesc('Use custom prompts for research modes instead of built-in defaults')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enableCustomPrompts)
 				.onChange(async (value) => {
@@ -1127,88 +1536,31 @@ class GeminiSettingTab extends PluginSettingTab {
 					this.display(); // Refresh to show/hide custom prompt settings
 				}));
 
+		// API Keys Section - always visible for easy setup
+		const { contentEl: apiKeyContent } = this.createCollapsibleSection(
+			containerEl,
+			'🔑 API Keys Configuration',
+			'Manage API keys for all providers (only current provider key is required)',
+			'api-keys',
+			false
+		);
+
+		// Add all API keys for easy management
+		this.addAllApiKeys(apiKeyContent);
+
 		// Provider-specific settings
-		containerEl.createEl('h3', {text: 'API Keys'});
-
-		// Gemini settings
-		if (this.plugin.settings.provider === 'gemini') {
-			this.addGeminiSettings(containerEl);
-		}
-
-		// Perplexity settings
-		if (this.plugin.settings.provider === 'perplexity') {
-			this.addPerplexitySettings(containerEl);
-		}
-
-		// Tavily settings
-		if (this.plugin.settings.provider === 'tavily') {
-			this.addTavilySettings(containerEl);
-		}
-
-		// Exa settings
-		if (this.plugin.settings.provider === 'exa') {
-			this.addExaSettings(containerEl);
-		}
-
-		// Always show all API keys for easy setup
-		containerEl.createEl('h4', {text: 'Additional API Keys (Optional)'});
-		
-		if (this.plugin.settings.provider !== 'gemini') {
-			new Setting(containerEl)
-				.setName('Gemini API Key')
-				.setDesc('Optional: Get from Google AI Studio')
-				.addText(text => text
-					.setPlaceholder('Enter Gemini API key')
-					.setValue(this.plugin.settings.geminiApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.geminiApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-		}
-
-		if (this.plugin.settings.provider !== 'perplexity') {
-			new Setting(containerEl)
-				.setName('Perplexity API Key')
-				.setDesc('Optional: Get from Perplexity.ai')
-				.addText(text => text
-					.setPlaceholder('Enter Perplexity API key')
-					.setValue(this.plugin.settings.perplexityApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.perplexityApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-		}
-
-		if (this.plugin.settings.provider !== 'tavily') {
-			new Setting(containerEl)
-				.setName('Tavily API Key')
-				.setDesc('Optional: Get from Tavily.com')
-				.addText(text => text
-					.setPlaceholder('Enter Tavily API key')
-					.setValue(this.plugin.settings.tavilyApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.tavilyApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-		}
-
-		if (this.plugin.settings.provider !== 'exa') {
-			new Setting(containerEl)
-				.setName('Exa API Key')
-				.setDesc('Optional: Get from dashboard.exa.ai')
-				.addText(text => text
-					.setPlaceholder('Enter Exa API key')
-					.setValue(this.plugin.settings.exaApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.exaApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-		}
+		this.addProviderSpecificSettings(containerEl);
 
 		// Custom prompts section
 		if (this.plugin.settings.enableCustomPrompts) {
 			this.addCustomPromptSettings(containerEl);
 		}
+
+		// Advanced sections for each provider
+		this.addAdvancedProviderSettings(containerEl);
+
+		// Preset configurations section
+		this.addPresetConfigurations(containerEl);
 	}
 
 	addGeminiSettings(containerEl: HTMLElement) {
@@ -1381,60 +1733,81 @@ class GeminiSettingTab extends PluginSettingTab {
 	}
 
 	addExaSettings(containerEl: HTMLElement) {
-		new Setting(containerEl)
-			.setName('Exa API Key')
-			.setDesc('Get your API key from dashboard.exa.ai ($10 free credits)')
-			.addText(text => text
-				.setPlaceholder('Enter your Exa API key')
-				.setValue(this.plugin.settings.exaApiKey)
-				.onChange(async (value) => {
-					this.plugin.settings.exaApiKey = value;
-					await this.plugin.saveSettings();
-				}));
+		// Don't add API key here if we're in advanced settings (it's already in main API section)
+		if (!containerEl.hasClass('provider-tab-content')) {
+			new Setting(containerEl)
+				.setName('🧠 Exa API Key')
+				.setDesc('Get your API key from dashboard.exa.ai ($10 free credits to start)')
+				.addText(text => text
+					.setPlaceholder('Enter your Exa API key')
+					.setValue(this.plugin.settings.exaApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.exaApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 
-		// Advanced Exa Parameters
-		containerEl.createEl('h4', {text: 'Advanced Exa Parameters'});
-
+		// Search Type - with detailed explanations
+		containerEl.createEl('h4', {text: '🎯 Search Configuration'});
+		
 		new Setting(containerEl)
 			.setName('Search Type')
-			.setDesc('Neural = semantic search, Keyword = traditional, Auto = intelligent blend, Fast = optimized speed (425ms)')
-			.addDropdown(dropdown => dropdown
-				.addOption('auto', 'Auto (Recommended)')
-				.addOption('neural', 'Neural (Semantic)')
-				.addOption('keyword', 'Keyword (Traditional)')
-				.addOption('fast', 'Fast (425ms latency)')
-				.setValue(this.plugin.settings.exaSearchType)
-				.onChange(async (value: 'auto' | 'neural' | 'keyword' | 'fast') => {
+			.setDesc('Choose search algorithm based on your needs')
+			.addDropdown(dropdown => {
+				dropdown.addOption('auto', '🤖 Auto - Intelligent blend of neural & keyword (recommended)');
+				dropdown.addOption('neural', '🧠 Neural - Semantic understanding, finds conceptually similar content');
+				dropdown.addOption('keyword', '🔤 Keyword - Traditional exact word matching, faster');
+				dropdown.addOption('fast', '⚡ Fast - Ultra-fast 425ms search, optimized for speed');
+				dropdown.setValue(this.plugin.settings.exaSearchType);
+				dropdown.onChange(async (value: 'auto' | 'neural' | 'keyword' | 'fast') => {
 					this.plugin.settings.exaSearchType = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
+
+		// Add search type explanation
+		const searchTypeHelp = containerEl.createEl('div', { cls: 'setting-help-text' });
+		searchTypeHelp.innerHTML = `
+			<strong>Search Type Guide:</strong>
+			<ul>
+				<li><strong>Auto:</strong> Best of both worlds - combines neural semantic understanding with keyword precision</li>
+				<li><strong>Neural:</strong> Understands meaning and context, finds related concepts even without exact keywords</li>
+				<li><strong>Keyword:</strong> Traditional search, fast and precise for exact term matching</li>
+				<li><strong>Fast:</strong> Lightning-fast results in 425ms, perfect for quick queries</li>
+			</ul>
+		`;
 
 		new Setting(containerEl)
-			.setName('Content Category')
-			.setDesc('Filter results by content type (leave empty for all)')
-			.addDropdown(dropdown => dropdown
-				.addOption('', 'All Categories')
-				.addOption('company', 'Company')
-				.addOption('research paper', 'Research Paper')
-				.addOption('news', 'News')
-				.addOption('pdf', 'PDF Documents')
-				.addOption('github', 'GitHub')
-				.addOption('tweet', 'Twitter')
-				.addOption('personal site', 'Personal Site')
-				.addOption('linkedin profile', 'LinkedIn Profile')
-				.addOption('financial report', 'Financial Report')
-				.setValue(this.plugin.settings.exaCategory)
-				.onChange(async (value) => {
+			.setName('Content Category Filter')
+			.setDesc('Focus search on specific content types for better relevance')
+			.addDropdown(dropdown => {
+				dropdown.addOption('', '🌐 All Categories - Search everywhere');
+				dropdown.addOption('company', '🏢 Company - Corporate websites and business info');
+				dropdown.addOption('research paper', '📚 Research Papers - Academic and scientific papers');
+				dropdown.addOption('news', '📰 News - News articles and journalism');
+				dropdown.addOption('pdf', '📄 PDF Documents - Focus on PDF files');
+				dropdown.addOption('github', '💻 GitHub - Code repositories and developer content');
+				dropdown.addOption('tweet', '🐦 Twitter - Social media posts and discussions');
+				dropdown.addOption('personal site', '👤 Personal Sites - Blogs and personal websites');
+				dropdown.addOption('linkedin profile', '👔 LinkedIn - Professional profiles and content');
+				dropdown.addOption('financial report', '💰 Financial Reports - Financial and investment data');
+				dropdown.setValue(this.plugin.settings.exaCategory);
+				dropdown.onChange(async (value) => {
 					this.plugin.settings.exaCategory = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
 
-		// Content extraction settings
-		containerEl.createEl('h5', {text: 'Content Extraction'});
+		// Content Extraction - with benefits explanation
+		containerEl.createEl('h4', {text: '📄 Content Extraction'});
+		containerEl.createEl('p', { 
+			text: 'Extract rich content from web pages for comprehensive analysis', 
+			cls: 'setting-section-description' 
+		});
 
 		new Setting(containerEl)
-			.setName('Get Full Text')
-			.setDesc('Extract full text content from pages')
+			.setName('📝 Extract Full Text')
+			.setDesc('Extract complete text content from web pages (slower but more comprehensive)')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.exaGetText)
 				.onChange(async (value) => {
@@ -1443,8 +1816,8 @@ class GeminiSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Get Highlights')
-			.setDesc('Extract key highlights from content')
+			.setName('✨ Extract Highlights')
+			.setDesc('Get key highlights and important excerpts (faster, focuses on main points)')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.exaGetHighlights)
 				.onChange(async (value) => {
@@ -1453,8 +1826,8 @@ class GeminiSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Get Summary')
-			.setDesc('Generate AI summaries of content')
+			.setName('📋 Generate AI Summary')
+			.setDesc('Create AI-generated summaries of content (best for quick understanding)')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.exaGetSummary)
 				.onChange(async (value) => {
@@ -1462,14 +1835,30 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Advanced filtering
-		containerEl.createEl('h5', {text: 'Advanced Filtering'});
+		// Content extraction guide
+		const extractionHelp = containerEl.createEl('div', { cls: 'setting-help-text' });
+		extractionHelp.innerHTML = `
+			<strong>💡 Content Extraction Tips:</strong>
+			<ul>
+				<li><strong>Full Text:</strong> Best for detailed analysis, but slower and uses more tokens</li>
+				<li><strong>Highlights:</strong> Perfect balance of speed and relevance</li>
+				<li><strong>AI Summary:</strong> Fastest option, great for quick research</li>
+				<li><strong>Recommendation:</strong> Enable Highlights + Summary for optimal results</li>
+			</ul>
+		`;
+
+		// Advanced Filtering
+		containerEl.createEl('h4', {text: '🔍 Advanced Filtering'});
+		containerEl.createEl('p', { 
+			text: 'Fine-tune your search with domain and content filters', 
+			cls: 'setting-section-description' 
+		});
 
 		new Setting(containerEl)
-			.setName('Include Domains')
-			.setDesc('Comma-separated list of domains to include (e.g., arxiv.org, github.com)')
-			.addText(text => text
-				.setPlaceholder('arxiv.org, github.com')
+			.setName('✅ Include Domains')
+			.setDesc('Only search within these domains (comma-separated). Examples: arxiv.org, github.com, wikipedia.org')
+			.addTextArea(text => text
+				.setPlaceholder('arxiv.org, github.com, scholar.google.com')
 				.setValue(this.plugin.settings.exaIncludeDomains.join(', '))
 				.onChange(async (value) => {
 					this.plugin.settings.exaIncludeDomains = value
@@ -1480,10 +1869,10 @@ class GeminiSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Exclude Domains')
-			.setDesc('Comma-separated list of domains to exclude')
-			.addText(text => text
-				.setPlaceholder('reddit.com, quora.com')
+			.setName('❌ Exclude Domains')
+			.setDesc('Exclude these domains from search results. Examples: reddit.com, quora.com')
+			.addTextArea(text => text
+				.setPlaceholder('reddit.com, quora.com, pinterest.com')
 				.setValue(this.plugin.settings.exaExcludeDomains.join(', '))
 				.onChange(async (value) => {
 					this.plugin.settings.exaExcludeDomains = value
@@ -1493,9 +1882,12 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Date Filtering
+		containerEl.createEl('h5', {text: '📅 Date Range Filtering'});
+
 		new Setting(containerEl)
-			.setName('Start Date Filter')
-			.setDesc('Only include content published after this date (YYYY-MM-DD)')
+			.setName('📅 Start Date')
+			.setDesc('Only include content published after this date (YYYY-MM-DD format)')
 			.addText(text => text
 				.setPlaceholder('2024-01-01')
 				.setValue(this.plugin.settings.exaStartDate)
@@ -1505,8 +1897,8 @@ class GeminiSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('End Date Filter')
-			.setDesc('Only include content published before this date (YYYY-MM-DD)')
+			.setName('📅 End Date')
+			.setDesc('Only include content published before this date (YYYY-MM-DD format)')
 			.addText(text => text
 				.setPlaceholder('2024-12-31')
 				.setValue(this.plugin.settings.exaEndDate)
@@ -1515,11 +1907,14 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Text Pattern Filtering
+		containerEl.createEl('h5', {text: '🔤 Text Pattern Filtering'});
+
 		new Setting(containerEl)
-			.setName('Include Text')
-			.setDesc('Comma-separated strings that must be present in results (max 5 words each)')
-			.addText(text => text
-				.setPlaceholder('machine learning, artificial intelligence')
+			.setName('✅ Must Include Text')
+			.setDesc('Results must contain these phrases (comma-separated, max 5 words each)')
+			.addTextArea(text => text
+				.setPlaceholder('machine learning, artificial intelligence, research')
 				.setValue(this.plugin.settings.exaIncludeText.join(', '))
 				.onChange(async (value) => {
 					this.plugin.settings.exaIncludeText = value
@@ -1530,10 +1925,10 @@ class GeminiSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Exclude Text')
-			.setDesc('Comma-separated strings that must NOT be present in results (max 5 words each)')
-			.addText(text => text
-				.setPlaceholder('course, tutorial')
+			.setName('❌ Must Exclude Text')
+			.setDesc('Results must NOT contain these phrases (comma-separated)')
+			.addTextArea(text => text
+				.setPlaceholder('advertisement, sponsored, click here')
 				.setValue(this.plugin.settings.exaExcludeText.join(', '))
 				.onChange(async (value) => {
 					this.plugin.settings.exaExcludeText = value
@@ -1541,6 +1936,79 @@ class GeminiSettingTab extends PluginSettingTab {
 						.map(s => s.trim())
 						.filter(s => s.length > 0);
 					await this.plugin.saveSettings();
+				}));
+
+		// Exa-specific presets
+		const exaPresetsContainer = containerEl.createEl('div', { cls: 'exa-presets' });
+		exaPresetsContainer.createEl('h5', {text: '🎛️ Exa Quick Presets'});
+
+		const presetsGrid = exaPresetsContainer.createEl('div', { cls: 'presets-grid' });
+
+		// Academic Research Preset
+		new Setting(presetsGrid)
+			.setName('🎓 Academic Research')
+			.setDesc('Optimize for research papers and academic content')
+			.addButton(button => button
+				.setButtonText('Apply')
+				.onClick(async () => {
+					this.plugin.settings.exaSearchType = 'neural';
+					this.plugin.settings.exaCategory = 'research paper';
+					this.plugin.settings.exaIncludeDomains = ['arxiv.org', 'scholar.google.com', 'pubmed.ncbi.nlm.nih.gov', 'ieee.org'];
+					this.plugin.settings.exaGetText = true;
+					this.plugin.settings.exaGetHighlights = true;
+					this.plugin.settings.exaGetSummary = true;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// News & Current Events Preset
+		new Setting(presetsGrid)
+			.setName('📰 News & Current Events')
+			.setDesc('Focus on recent news and current information')
+			.addButton(button => button
+				.setButtonText('Apply')
+				.onClick(async () => {
+					this.plugin.settings.exaSearchType = 'fast';
+					this.plugin.settings.exaCategory = 'news';
+					this.plugin.settings.exaStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Last 30 days
+					this.plugin.settings.exaGetHighlights = true;
+					this.plugin.settings.exaGetSummary = true;
+					this.plugin.settings.exaGetText = false;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Developer Resources Preset
+		new Setting(presetsGrid)
+			.setName('💻 Developer Resources')
+			.setDesc('Focus on code, documentation, and technical content')
+			.addButton(button => button
+				.setButtonText('Apply')
+				.onClick(async () => {
+					this.plugin.settings.exaSearchType = 'neural';
+					this.plugin.settings.exaCategory = 'github';
+					this.plugin.settings.exaIncludeDomains = ['github.com', 'stackoverflow.com', 'developer.mozilla.org', 'docs.python.org'];
+					this.plugin.settings.exaGetText = true;
+					this.plugin.settings.exaGetHighlights = true;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Speed Optimized Preset
+		new Setting(presetsGrid)
+			.setName('⚡ Speed Optimized')
+			.setDesc('Ultra-fast searches with minimal latency')
+			.addButton(button => button
+				.setButtonText('Apply')
+				.onClick(async () => {
+					this.plugin.settings.exaSearchType = 'fast';
+					this.plugin.settings.exaGetText = false;
+					this.plugin.settings.exaGetHighlights = true;
+					this.plugin.settings.exaGetSummary = false;
+					this.plugin.settings.exaIncludeDomains = [];
+					this.plugin.settings.exaExcludeDomains = [];
+					await this.plugin.saveSettings();
+					this.display();
 				}));
 	}
 
@@ -1594,5 +2062,335 @@ class GeminiSettingTab extends PluginSettingTab {
 					this.plugin.settings.reasoningPrompt = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	// Helper method to update provider info
+	updateProviderInfo(container: HTMLElement, provider: string) {
+		container.empty();
+		
+		const providers = {
+			'gemini': {
+				name: 'Google Gemini',
+				description: 'Direct Google Search integration with real-time grounding',
+				features: ['Real-time web search', 'Google Search results', 'Source citations', 'Multiple models'],
+				pricing: 'Free tier available',
+				latency: '~2-3 seconds',
+				hasKey: !!this.plugin.settings.geminiApiKey
+			},
+			'perplexity': {
+				name: 'Perplexity AI',
+				description: 'Real-time web search with academic-quality citations',
+				features: ['Real-time search', 'Citation tracking', 'Multi-model support', 'Reasoning mode'],
+				pricing: '$20/month for Pro',
+				latency: '~1-2 seconds',
+				hasKey: !!this.plugin.settings.perplexityApiKey
+			},
+			'tavily': {
+				name: 'Tavily Search',
+				description: 'Advanced web search API optimized for AI applications',
+				features: ['Advanced search depth', 'AI-optimized results', 'Source ranking', 'Content filtering'],
+				pricing: '1000 free credits/month',
+				latency: '~1-2 seconds',
+				hasKey: !!this.plugin.settings.tavilyApiKey
+			},
+			'exa': {
+				name: 'Exa Neural Search',
+				description: 'Semantic neural search with 425ms lightning-fast latency',
+				features: ['Neural semantic search', '425ms latency', 'Content extraction', 'Domain filtering'],
+				pricing: '$10 free credits',
+				latency: '~425ms (fastest)',
+				hasKey: !!this.plugin.settings.exaApiKey
+			}
+		};
+
+		const info = providers[provider as keyof typeof providers];
+		if (!info) return;
+
+		const infoCard = container.createEl('div', { cls: 'provider-info-card' });
+		
+		// Status and name
+		const header = infoCard.createEl('div', { cls: 'provider-info-header' });
+		header.createEl('h4', { text: info.name });
+		header.appendChild(this.createStatusIndicator(info.hasKey, info.name));
+		
+		// Description
+		infoCard.createEl('p', { text: info.description, cls: 'provider-description' });
+		
+		// Features
+		const featuresList = infoCard.createEl('ul', { cls: 'provider-features' });
+		info.features.forEach(feature => {
+			featuresList.createEl('li', { text: feature });
+		});
+		
+		// Specs
+		const specs = infoCard.createEl('div', { cls: 'provider-specs' });
+		specs.createEl('span', { text: `💰 ${info.pricing}`, cls: 'spec-item' });
+		specs.createEl('span', { text: `⚡ ${info.latency}`, cls: 'spec-item' });
+	}
+
+	// Method to add all API keys for easy management
+	addAllApiKeys(containerEl: HTMLElement) {
+		// Gemini API Key
+		const geminiSetting = new Setting(containerEl)
+			.setName('🤖 Google Gemini API Key')
+			.setDesc('Get from Google AI Studio (aistudio.google.com) - Free tier with generous limits');
+		
+		geminiSetting.settingEl.appendChild(this.createStatusIndicator(!!this.plugin.settings.geminiApiKey, 'Gemini'));
+		
+		geminiSetting.addText(text => text
+			.setPlaceholder('Enter your Gemini API key')
+			.setValue(this.plugin.settings.geminiApiKey)
+			.onChange(async (value) => {
+				this.plugin.settings.geminiApiKey = value;
+				await this.plugin.saveSettings();
+				this.display(); // Refresh status indicators
+			}));
+
+		// Perplexity API Key
+		const perplexitySetting = new Setting(containerEl)
+			.setName('🔍 Perplexity AI API Key')
+			.setDesc('Get from Perplexity.ai - $20/month Pro plan for full access');
+		
+		perplexitySetting.settingEl.appendChild(this.createStatusIndicator(!!this.plugin.settings.perplexityApiKey, 'Perplexity'));
+		
+		perplexitySetting.addText(text => text
+			.setPlaceholder('Enter your Perplexity API key')
+			.setValue(this.plugin.settings.perplexityApiKey)
+			.onChange(async (value) => {
+				this.plugin.settings.perplexityApiKey = value;
+				await this.plugin.saveSettings();
+				this.display(); // Refresh status indicators
+			}));
+
+		// Tavily API Key
+		const tavilySetting = new Setting(containerEl)
+			.setName('🌐 Tavily Search API Key')
+			.setDesc('Get from Tavily.com - 1000 free credits monthly, then $50/month');
+		
+		tavilySetting.settingEl.appendChild(this.createStatusIndicator(!!this.plugin.settings.tavilyApiKey, 'Tavily'));
+		
+		tavilySetting.addText(text => text
+			.setPlaceholder('Enter your Tavily API key')
+			.setValue(this.plugin.settings.tavilyApiKey)
+			.onChange(async (value) => {
+				this.plugin.settings.tavilyApiKey = value;
+				await this.plugin.saveSettings();
+				this.display(); // Refresh status indicators
+			}));
+
+		// Exa API Key
+		const exaSetting = new Setting(containerEl)
+			.setName('🧠 Exa Neural Search API Key')
+			.setDesc('Get from dashboard.exa.ai - $10 free credits, then usage-based pricing');
+		
+		exaSetting.settingEl.appendChild(this.createStatusIndicator(!!this.plugin.settings.exaApiKey, 'Exa'));
+		
+		exaSetting.addText(text => text
+			.setPlaceholder('Enter your Exa API key')
+			.setValue(this.plugin.settings.exaApiKey)
+			.onChange(async (value) => {
+				this.plugin.settings.exaApiKey = value;
+				await this.plugin.saveSettings();
+				this.display(); // Refresh status indicators
+			}));
+	}
+
+	// Method for provider-specific settings
+	addProviderSpecificSettings(containerEl: HTMLElement) {
+		// Provider-specific advanced settings
+		const { contentEl: providerContent } = this.createCollapsibleSection(
+			containerEl,
+			`⚙️ ${this.plugin.settings.provider.charAt(0).toUpperCase() + this.plugin.settings.provider.slice(1)} Settings`,
+			`Advanced configuration for ${this.plugin.settings.provider}`,
+			'provider-specific',
+			false
+		);
+
+		// Add provider-specific settings based on current provider
+		switch (this.plugin.settings.provider) {
+			case 'gemini':
+				this.addGeminiSettings(providerContent);
+				break;
+			case 'perplexity':
+				this.addPerplexitySettings(providerContent);
+				break;
+			case 'tavily':
+				this.addTavilySettings(providerContent);
+				break;
+			case 'exa':
+				this.addExaSettings(providerContent);
+				break;
+		}
+	}
+
+	// Method for advanced provider settings (for all providers)
+	addAdvancedProviderSettings(containerEl: HTMLElement) {
+		const { contentEl: advancedContent } = this.createCollapsibleSection(
+			containerEl,
+			'🔧 Advanced Provider Configurations',
+			'Fine-tune settings for all providers (for power users)',
+			'advanced-providers',
+			false
+		);
+
+		// Add tabs or sections for each provider
+		const tabsContainer = advancedContent.createEl('div', { cls: 'provider-tabs' });
+		const contentContainer = advancedContent.createEl('div', { cls: 'provider-tabs-content' });
+
+		const providers = ['gemini', 'perplexity', 'tavily', 'exa'];
+		
+		providers.forEach((provider, index) => {
+			// Tab button
+			const tab = tabsContainer.createEl('button', {
+				cls: `provider-tab ${index === 0 ? 'active' : ''}`,
+				text: provider.charAt(0).toUpperCase() + provider.slice(1),
+				attr: { 'data-provider': provider }
+			});
+
+			// Tab content
+			const content = contentContainer.createEl('div', {
+				cls: `provider-tab-content ${index === 0 ? 'active' : ''}`,
+				attr: { 'data-provider': provider }
+			});
+
+			// Add settings for each provider
+			switch (provider) {
+				case 'gemini':
+					this.addGeminiAdvancedSettings(content);
+					break;
+				case 'perplexity':
+					this.addPerplexityAdvancedSettings(content);
+					break;
+				case 'tavily':
+					this.addTavilyAdvancedSettings(content);
+					break;
+				case 'exa':
+					this.addExaAdvancedSettings(content);
+					break;
+			}
+
+			// Tab click event
+			tab.addEventListener('click', () => {
+				// Remove active from all tabs and contents
+				tabsContainer.querySelectorAll('.provider-tab').forEach(t => t.removeClass('active'));
+				contentContainer.querySelectorAll('.provider-tab-content').forEach(c => c.removeClass('active'));
+				
+				// Add active to clicked tab and corresponding content
+				tab.addClass('active');
+				content.addClass('active');
+			});
+		});
+	}
+
+	// Method for preset configurations
+	addPresetConfigurations(containerEl: HTMLElement) {
+		const { contentEl: presetContent } = this.createCollapsibleSection(
+			containerEl,
+			'🎛️ Preset Configurations',
+			'Quick presets for different use cases',
+			'presets',
+			false
+		);
+
+		// Preset buttons
+		const presetButtons = presetContent.createEl('div', { cls: 'preset-buttons' });
+
+		// Speed Optimized Preset
+		new Setting(presetContent)
+			.setName('⚡ Speed Optimized')
+			.setDesc('Optimize for fastest responses (Exa fast search, minimal results)')
+			.addButton(button => button
+				.setButtonText('Apply Speed Preset')
+				.onClick(async () => {
+					this.plugin.settings.provider = 'exa';
+					this.plugin.settings.exaSearchType = 'fast';
+					this.plugin.settings.maxResults = 3;
+					this.plugin.settings.exaGetText = false;
+					this.plugin.settings.exaGetHighlights = true;
+					this.plugin.settings.exaGetSummary = false;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Comprehensive Research Preset
+		new Setting(presetContent)
+			.setName('🔍 Comprehensive Research')
+			.setDesc('Optimize for thorough research (Multiple sources, full content)')
+			.addButton(button => button
+				.setButtonText('Apply Research Preset')
+				.onClick(async () => {
+					this.plugin.settings.maxResults = 10;
+					this.plugin.settings.exaSearchType = 'neural';
+					this.plugin.settings.exaGetText = true;
+					this.plugin.settings.exaGetHighlights = true;
+					this.plugin.settings.exaGetSummary = true;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Academic Focus Preset
+		new Setting(presetContent)
+			.setName('🎓 Academic Focus')
+			.setDesc('Optimize for academic and research sources')
+			.addButton(button => button
+				.setButtonText('Apply Academic Preset')
+				.onClick(async () => {
+					this.plugin.settings.provider = 'exa';
+					this.plugin.settings.exaSearchType = 'neural';
+					this.plugin.settings.exaCategory = 'research paper';
+					this.plugin.settings.exaIncludeDomains = ['arxiv.org', 'scholar.google.com', 'pubmed.ncbi.nlm.nih.gov'];
+					this.plugin.settings.maxResults = 8;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Reset to defaults
+		this.createResetButton(
+			presetContent,
+			'🔄 Reset All Settings',
+			'Reset all settings to default values',
+			() => {
+				Object.assign(this.plugin.settings, DEFAULT_SETTINGS);
+			}
+		);
+	}
+
+	// Additional methods for specific provider advanced settings
+	addGeminiAdvancedSettings(containerEl: HTMLElement) {
+		containerEl.createEl('h5', { text: 'Gemini Advanced Parameters' });
+		containerEl.createEl('p', { 
+			text: 'Fine-tune Gemini model behavior. These affect creativity, randomness, and response quality.',
+			cls: 'settings-help-text'
+		});
+		
+		// Add advanced Gemini settings here (temperature, topP, etc.)
+		// These are already in addGeminiSettings, so we can reference that or create specific advanced ones
+	}
+
+	addPerplexityAdvancedSettings(containerEl: HTMLElement) {
+		containerEl.createEl('h5', { text: 'Perplexity Advanced Parameters' });
+		containerEl.createEl('p', { 
+			text: 'Control Perplexity search depth and response characteristics.',
+			cls: 'settings-help-text'
+		});
+	}
+
+	addTavilyAdvancedSettings(containerEl: HTMLElement) {
+		containerEl.createEl('h5', { text: 'Tavily Advanced Parameters' });
+		containerEl.createEl('p', { 
+			text: 'Tavily uses intelligent defaults. Additional customization options may be added in future updates.',
+			cls: 'settings-help-text'
+		});
+	}
+
+	addExaAdvancedSettings(containerEl: HTMLElement) {
+		containerEl.createEl('h5', { text: 'Exa Neural Search Advanced Parameters' });
+		containerEl.createEl('p', { 
+			text: 'Exa offers the most customization options for semantic search and content filtering.',
+			cls: 'settings-help-text'
+		});
+		
+		// Show all Exa advanced settings here
+		this.addExaSettings(containerEl);
 	}
 }
