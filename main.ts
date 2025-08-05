@@ -1,6 +1,6 @@
 import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, requestUrl, ItemView, WorkspaceLeaf } from 'obsidian';
 
-// Enhanced settings with multiple providers
+// Enhanced settings with multiple providers and advanced parameters
 interface GeminiWebSearchSettings {
 	provider: 'gemini' | 'perplexity' | 'tavily';
 	geminiApiKey: string;
@@ -11,6 +11,25 @@ interface GeminiWebSearchSettings {
 	insertMode: 'replace' | 'append';
 	maxResults: number;
 	includeImages: boolean;
+	
+	// Advanced Gemini parameters
+	geminiTemperature: number;
+	geminiTopP: number;
+	geminiTopK: number;
+	geminiMaxTokens: number;
+	
+	// Advanced Perplexity parameters  
+	perplexityTemperature: number;
+	perplexityTopP: number;
+	perplexityTopK: number;
+	perplexityMaxTokens: number;
+	
+	// Custom prompts
+	enableCustomPrompts: boolean;
+	quickPrompt: string;
+	comprehensivePrompt: string;
+	deepPrompt: string;
+	reasoningPrompt: string;
 }
 
 const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
@@ -22,7 +41,26 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	perplexityModel: 'sonar-pro',
 	insertMode: 'replace',
 	maxResults: 5,
-	includeImages: false
+	includeImages: false,
+	
+	// Advanced Gemini parameters (sensible defaults)
+	geminiTemperature: 0.7,
+	geminiTopP: 0.8,
+	geminiTopK: 40,
+	geminiMaxTokens: 2000,
+	
+	// Advanced Perplexity parameters (sensible defaults)
+	perplexityTemperature: 0.75,
+	perplexityTopP: 0.9,
+	perplexityTopK: 50,
+	perplexityMaxTokens: 2000,
+	
+	// Custom prompts
+	enableCustomPrompts: false,
+	quickPrompt: 'Provide a quick, concise answer to: "{query}". Focus on the most important facts and key points.',
+	comprehensivePrompt: 'Provide a comprehensive, well-structured answer about: "{query}". Include key facts, context, and relevant details with proper sources.',
+	deepPrompt: 'Conduct deep research on: "{query}". Provide expert-level analysis, multiple perspectives, detailed explanations, and comprehensive coverage of the topic with extensive sources.',
+	reasoningPrompt: 'Analyze and reason through: "{query}". Break down the problem, provide logical reasoning, consider multiple angles, and deliver a thoughtful conclusion with supporting evidence.'
 }
 
 // Chat View constants
@@ -294,7 +332,22 @@ export class GeminiChatView extends ItemView {
 		if (role === 'user') {
 			messageDiv.createEl('div', { cls: 'message-role', text: 'You' });
 		} else if (role === 'assistant') {
-			messageDiv.createEl('div', { cls: 'message-role', text: 'AI Assistant' });
+			const roleHeader = messageDiv.createEl('div', { cls: 'message-role-header' });
+			roleHeader.createEl('span', { cls: 'message-role', text: 'AI Assistant' });
+			
+			// Add copy button for AI responses
+			const copyButton = roleHeader.createEl('button', {
+				cls: 'copy-button',
+				text: '📋 Copy'
+			});
+			
+			copyButton.addEventListener('click', () => {
+				navigator.clipboard.writeText(content);
+				copyButton.textContent = '✅ Copied!';
+				setTimeout(() => {
+					copyButton.textContent = '📋 Copy';
+				}, 2000);
+			});
 		}
 
 		const contentDiv = messageDiv.createEl('div', { cls: 'message-content' });
@@ -303,7 +356,15 @@ export class GeminiChatView extends ItemView {
 			contentDiv.addClass('thinking');
 		}
 		
-		contentDiv.textContent = content;
+		// Enable text selection and render markdown
+		contentDiv.addClass('selectable-text');
+		
+		if (role === 'assistant' && !isThinking) {
+			// Render markdown for AI responses
+			this.renderMarkdownContent(contentDiv, content);
+		} else {
+			contentDiv.textContent = content;
+		}
 
 		// Scroll to bottom
 		this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
@@ -314,10 +375,25 @@ export class GeminiChatView extends ItemView {
 	updateMessage(messageId: string, newContent: string) {
 		const messageEl = this.messageContainer.querySelector(`[data-id="${messageId}"]`);
 		if (messageEl) {
-			const contentEl = messageEl.querySelector('.message-content');
+			const contentEl = messageEl.querySelector('.message-content') as HTMLElement;
 			if (contentEl) {
 				contentEl.removeClass('thinking');
-				contentEl.textContent = newContent;
+				contentEl.addClass('selectable-text');
+				
+				// Render markdown for AI responses
+				this.renderMarkdownContent(contentEl, newContent);
+				
+				// Update copy button functionality
+				const copyButton = messageEl.querySelector('.copy-button') as HTMLButtonElement;
+				if (copyButton) {
+					copyButton.onclick = () => {
+						navigator.clipboard.writeText(newContent);
+						copyButton.textContent = '✅ Copied!';
+						setTimeout(() => {
+							copyButton.textContent = '📋 Copy';
+						}, 2000);
+					};
+				}
 			}
 		}
 	}
@@ -345,6 +421,94 @@ export class GeminiChatView extends ItemView {
 			default:
 				return false;
 		}
+	}
+
+	// Add markdown rendering method
+	renderMarkdownContent(container: HTMLElement, content: string) {
+		container.empty();
+		
+		// Simple markdown parsing for common elements
+		const lines = content.split('\n');
+		let currentElement: HTMLElement = container;
+		let inCodeBlock = false;
+		let codeBlockContent: string[] = [];
+		
+		lines.forEach(line => {
+			if (line.startsWith('```')) {
+				if (inCodeBlock) {
+					// End code block
+					const pre = container.createEl('pre');
+					const code = pre.createEl('code');
+					code.textContent = codeBlockContent.join('\n');
+					codeBlockContent = [];
+					inCodeBlock = false;
+					currentElement = container;
+				} else {
+					// Start code block
+					inCodeBlock = true;
+				}
+			} else if (inCodeBlock) {
+				codeBlockContent.push(line);
+			} else if (line.startsWith('### ')) {
+				const h3 = container.createEl('h3');
+				h3.textContent = line.replace('### ', '');
+				currentElement = container;
+			} else if (line.startsWith('## ')) {
+				const h2 = container.createEl('h2');
+				h2.textContent = line.replace('## ', '');
+				currentElement = container;
+			} else if (line.startsWith('# ')) {
+				const h1 = container.createEl('h1');
+				h1.textContent = line.replace('# ', '');
+				currentElement = container;
+			} else if (line.startsWith('- ') || line.startsWith('* ')) {
+				// Create ul if it doesn't exist or if current element is not UL
+				if (currentElement.tagName !== 'UL') {
+					currentElement = container.createEl('ul');
+				}
+				const li = currentElement.createEl('li');
+				this.parseInlineMarkdown(li, line.replace(/^[*-] /, ''));
+			} else if (line.startsWith('**Sources:**') || line.startsWith('--- ')) {
+				// Handle sources section
+				if (line.startsWith('--- ')) {
+					container.createEl('hr');
+				} else {
+					const sourcesHeader = container.createEl('h4');
+					sourcesHeader.textContent = 'Sources:';
+				}
+				currentElement = container;
+			} else if (line.trim() === '') {
+				container.createEl('br');
+				currentElement = container;
+			} else {
+				// Regular paragraph
+				if (currentElement.tagName === 'UL') {
+					currentElement = container;
+				}
+				const p = container.createEl('p');
+				this.parseInlineMarkdown(p, line);
+			}
+		});
+	}
+
+	// Parse inline markdown (bold, italic, links, code)
+	parseInlineMarkdown(element: HTMLElement, text: string) {
+		// Handle bold, italic, code, and links
+		let html = text;
+		
+		// Bold **text**
+		html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+		
+		// Italic *text*
+		html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+		
+		// Inline code `text`
+		html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+		
+		// Links [text](url)
+		html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+		
+		element.innerHTML = html;
 	}
 
 	async onClose() {
@@ -446,9 +610,27 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
 		const researchMode = chatView?.currentResearchMode;
 
-		// Customize prompt based on research mode
+		// Customize prompt based on research mode or custom prompts
 		let enhancedPrompt = query;
-		if (researchMode) {
+		if (this.settings.enableCustomPrompts && researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					enhancedPrompt = this.settings.quickPrompt.replace('{query}', query);
+					break;
+				case 'comprehensive':
+					enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
+					break;
+				case 'deep':
+					enhancedPrompt = this.settings.deepPrompt.replace('{query}', query);
+					break;
+				case 'reasoning':
+					enhancedPrompt = this.settings.reasoningPrompt.replace('{query}', query);
+					break;
+				default:
+					enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
+			}
+		} else if (researchMode) {
+			// Use default prompts
 			switch (researchMode.id) {
 				case 'quick':
 					enhancedPrompt = `Provide a quick, concise answer to: "${query}". Focus on the most important facts and key points.`;
@@ -469,6 +651,24 @@ export default class GeminiWebSearchPlugin extends Plugin {
 
 		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
 
+		// Dynamic token limits based on research mode
+		let maxTokens = this.settings.geminiMaxTokens;
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					maxTokens = Math.min(this.settings.geminiMaxTokens, 1000);
+					break;
+				case 'deep':
+					maxTokens = Math.max(this.settings.geminiMaxTokens, 4000);
+					break;
+				case 'reasoning':
+					maxTokens = this.settings.geminiMaxTokens;
+					break;
+				default:
+					maxTokens = this.settings.geminiMaxTokens;
+			}
+		}
+
 		const requestBody = {
 			contents: [{
 				parts: [{ text: enhancedPrompt }]
@@ -477,11 +677,10 @@ export default class GeminiWebSearchPlugin extends Plugin {
 				google_search: {}
 			}],
 			generationConfig: {
-				temperature: researchMode?.id === 'reasoning' ? 0.3 : 0.7,
-				topP: 0.8,
-				topK: 40,
-				maxOutputTokens: researchMode?.id === 'quick' ? 1000 : 
-								researchMode?.id === 'deep' ? 4000 : 2000
+				temperature: this.settings.geminiTemperature,
+				topP: this.settings.geminiTopP,
+				topK: this.settings.geminiTopK,
+				maxOutputTokens: maxTokens
 			}
 		};
 
@@ -528,6 +727,21 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		const researchMode = chatView?.currentResearchMode;
 		const modelToUse = researchMode?.perplexityModel || this.settings.perplexityModel;
 
+		// Dynamic token limits based on research mode
+		let maxTokens = this.settings.perplexityMaxTokens;
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					maxTokens = Math.min(this.settings.perplexityMaxTokens, 1000);
+					break;
+				case 'deep':
+					maxTokens = Math.max(this.settings.perplexityMaxTokens, 4000);
+					break;
+				default:
+					maxTokens = this.settings.perplexityMaxTokens;
+			}
+		}
+
 		const response = await requestUrl({
 			url: 'https://api.perplexity.ai/chat/completions',
 			method: 'POST',
@@ -541,6 +755,10 @@ export default class GeminiWebSearchPlugin extends Plugin {
 					role: "user",
 					content: query
 				}],
+				max_tokens: maxTokens,
+				temperature: this.settings.perplexityTemperature,
+				top_p: this.settings.perplexityTopP,
+				top_k: this.settings.perplexityTopK,
 				return_citations: true
 			})
 		});
@@ -680,75 +898,34 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Custom prompts toggle
+		new Setting(containerEl)
+			.setName('Enable Custom Prompts')
+			.setDesc('Use custom prompts for research modes instead of defaults')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCustomPrompts)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCustomPrompts = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide custom prompt settings
+				}));
+
 		// Provider-specific settings
 		containerEl.createEl('h3', {text: 'API Keys'});
 
 		// Gemini settings
 		if (this.plugin.settings.provider === 'gemini') {
-			new Setting(containerEl)
-				.setName('Gemini API Key')
-				.setDesc('Get your API key from Google AI Studio')
-				.addText(text => text
-					.setPlaceholder('Enter your Gemini API key')
-					.setValue(this.plugin.settings.geminiApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.geminiApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-
-			new Setting(containerEl)
-				.setName('Gemini Model')
-				.setDesc('Choose Gemini model to use')
-				.addDropdown(dropdown => dropdown
-					.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Fast)')
-					.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Advanced)')
-					.addOption('gemini-1.5-flash', 'Gemini 1.5 Flash (Legacy)')
-					.setValue(this.plugin.settings.geminiModel)
-					.onChange(async (value) => {
-						this.plugin.settings.geminiModel = value;
-						await this.plugin.saveSettings();
-					}));
+			this.addGeminiSettings(containerEl);
 		}
 
 		// Perplexity settings
 		if (this.plugin.settings.provider === 'perplexity') {
-			new Setting(containerEl)
-				.setName('Perplexity API Key')
-				.setDesc('Get your API key from Perplexity.ai')
-				.addText(text => text
-					.setPlaceholder('Enter your Perplexity API key')
-					.setValue(this.plugin.settings.perplexityApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.perplexityApiKey = value;
-						await this.plugin.saveSettings();
-					}));
-
-			new Setting(containerEl)
-				.setName('Perplexity Model')
-				.setDesc('Choose Perplexity model to use')
-				.addDropdown(dropdown => dropdown
-					.addOption('sonar-pro', 'Sonar Pro (Advanced search)')
-					.addOption('sonar-reasoning', 'Sonar Reasoning (Complex analysis)')
-					.addOption('sonar-deep-research', 'Sonar Deep Research (Comprehensive)')
-					.setValue(this.plugin.settings.perplexityModel)
-					.onChange(async (value) => {
-						this.plugin.settings.perplexityModel = value;
-						await this.plugin.saveSettings();
-					}));
+			this.addPerplexitySettings(containerEl);
 		}
 
 		// Tavily settings
 		if (this.plugin.settings.provider === 'tavily') {
-			new Setting(containerEl)
-				.setName('Tavily API Key')
-				.setDesc('Get your API key from Tavily.com (1000 free credits/month)')
-				.addText(text => text
-					.setPlaceholder('Enter your Tavily API key')
-					.setValue(this.plugin.settings.tavilyApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.tavilyApiKey = value;
-						await this.plugin.saveSettings();
-					}));
+			this.addTavilySettings(containerEl);
 		}
 
 		// Always show all API keys for easy setup
@@ -792,5 +969,231 @@ class GeminiSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 		}
+
+		// Custom prompts section
+		if (this.plugin.settings.enableCustomPrompts) {
+			this.addCustomPromptSettings(containerEl);
+		}
+	}
+
+	addGeminiSettings(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName('Gemini API Key')
+			.setDesc('Get your API key from Google AI Studio')
+			.addText(text => text
+				.setPlaceholder('Enter your Gemini API key')
+				.setValue(this.plugin.settings.geminiApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.geminiApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Gemini Model')
+			.setDesc('Choose Gemini model to use')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Fastest)')
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Fast)')
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Advanced)')
+				.addOption('gemini-1.5-flash', 'Gemini 1.5 Flash (Legacy)')
+				.setValue(this.plugin.settings.geminiModel)
+				.onChange(async (value) => {
+					this.plugin.settings.geminiModel = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Advanced Gemini Parameters
+		containerEl.createEl('h4', {text: 'Advanced Gemini Parameters'});
+
+		new Setting(containerEl)
+			.setName('Temperature')
+			.setDesc('Controls randomness (0.0 = deterministic, 1.0 = very random)')
+			.addSlider(slider => slider
+				.setLimits(0, 1, 0.1)
+				.setValue(this.plugin.settings.geminiTemperature)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.geminiTemperature = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Top P')
+			.setDesc('Nucleus sampling threshold (0.1 = conservative, 1.0 = diverse)')
+			.addSlider(slider => slider
+				.setLimits(0.1, 1, 0.1)
+				.setValue(this.plugin.settings.geminiTopP)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.geminiTopP = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Top K')
+			.setDesc('Number of top tokens to consider (1-100)')
+			.addSlider(slider => slider
+				.setLimits(1, 100, 1)
+				.setValue(this.plugin.settings.geminiTopK)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.geminiTopK = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Max Output Tokens')
+			.setDesc('Maximum response length (100-8192)')
+			.addSlider(slider => slider
+				.setLimits(100, 8192, 100)
+				.setValue(this.plugin.settings.geminiMaxTokens)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.geminiMaxTokens = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	addPerplexitySettings(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName('Perplexity API Key')
+			.setDesc('Get your API key from Perplexity.ai')
+			.addText(text => text
+				.setPlaceholder('Enter your Perplexity API key')
+				.setValue(this.plugin.settings.perplexityApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Perplexity Model')
+			.setDesc('Choose Perplexity model to use')
+			.addDropdown(dropdown => dropdown
+				.addOption('sonar', 'Sonar (Basic search)')
+				.addOption('sonar-pro', 'Sonar Pro (Advanced search)')
+				.addOption('sonar-reasoning', 'Sonar Reasoning (Complex analysis)')
+				.addOption('sonar-deep-research', 'Sonar Deep Research (Comprehensive)')
+				.setValue(this.plugin.settings.perplexityModel)
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityModel = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Advanced Perplexity Parameters
+		containerEl.createEl('h4', {text: 'Advanced Perplexity Parameters'});
+
+		new Setting(containerEl)
+			.setName('Temperature')
+			.setDesc('Controls randomness (0.0 = deterministic, 2.0 = very random)')
+			.addSlider(slider => slider
+				.setLimits(0, 2, 0.1)
+				.setValue(this.plugin.settings.perplexityTemperature)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityTemperature = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Top P')
+			.setDesc('Nucleus sampling threshold (0.1 = conservative, 1.0 = diverse)')
+			.addSlider(slider => slider
+				.setLimits(0.1, 1, 0.1)
+				.setValue(this.plugin.settings.perplexityTopP)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityTopP = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Top K')
+			.setDesc('Number of top tokens to consider (1-100)')
+			.addSlider(slider => slider
+				.setLimits(1, 100, 1)
+				.setValue(this.plugin.settings.perplexityTopK)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityTopK = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Max Output Tokens')
+			.setDesc('Maximum response length (100-4096)')
+			.addSlider(slider => slider
+				.setLimits(100, 4096, 100)
+				.setValue(this.plugin.settings.perplexityMaxTokens)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.perplexityMaxTokens = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	addTavilySettings(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName('Tavily API Key')
+			.setDesc('Get your API key from Tavily.com (1000 free credits/month)')
+			.addText(text => text
+				.setPlaceholder('Enter your Tavily API key')
+				.setValue(this.plugin.settings.tavilyApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.tavilyApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	addCustomPromptSettings(containerEl: HTMLElement) {
+		containerEl.createEl('h3', {text: 'Custom Research Mode Prompts'});
+		containerEl.createEl('p', {
+			text: 'Use {query} placeholder in your prompts. It will be replaced with the actual search query.',
+			cls: 'setting-item-description'
+		});
+
+		new Setting(containerEl)
+			.setName('Quick Mode Prompt')
+			.setDesc('Custom prompt for quick research mode')
+			.addTextArea(text => text
+				.setPlaceholder('Enter custom prompt for quick mode...')
+				.setValue(this.plugin.settings.quickPrompt)
+				.onChange(async (value) => {
+					this.plugin.settings.quickPrompt = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Comprehensive Mode Prompt')
+			.setDesc('Custom prompt for comprehensive research mode')
+			.addTextArea(text => text
+				.setPlaceholder('Enter custom prompt for comprehensive mode...')
+				.setValue(this.plugin.settings.comprehensivePrompt)
+				.onChange(async (value) => {
+					this.plugin.settings.comprehensivePrompt = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Deep Research Mode Prompt')
+			.setDesc('Custom prompt for deep research mode')
+			.addTextArea(text => text
+				.setPlaceholder('Enter custom prompt for deep research mode...')
+				.setValue(this.plugin.settings.deepPrompt)
+				.onChange(async (value) => {
+					this.plugin.settings.deepPrompt = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Reasoning Mode Prompt')
+			.setDesc('Custom prompt for reasoning mode')
+			.addTextArea(text => text
+				.setPlaceholder('Enter custom prompt for reasoning mode...')
+				.setValue(this.plugin.settings.reasoningPrompt)
+				.onChange(async (value) => {
+					this.plugin.settings.reasoningPrompt = value;
+					await this.plugin.saveSettings();
+				}));
 	}
 }
