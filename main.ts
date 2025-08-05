@@ -1322,6 +1322,15 @@ export default class GeminiWebSearchPlugin extends Plugin {
 			}
 		});
 
+		// Add command to test Perplexity API
+		this.addCommand({
+			id: 'test-perplexity-api',
+			name: 'AI Web Search: Test Perplexity API',
+			callback: async () => {
+				await this.testPerplexityAPI();
+			}
+		});
+
 		this.addSettingTab(new GeminiSettingTab(this.app, this));
 	}
 
@@ -1848,7 +1857,25 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		// Get current research mode from chat view
 		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
 		const researchMode = chatView?.currentResearchMode;
-		const modelToUse = researchMode?.perplexityModel || this.settings.perplexityModel;
+
+		// Use correct Perplexity model names for Pro subscription
+		let modelToUse: string;
+		switch (researchMode?.id) {
+			case 'quick':
+				modelToUse = 'llama-3.1-sonar-small-128k-online';
+				break;
+			case 'comprehensive':
+				modelToUse = 'llama-3.1-sonar-large-128k-online';
+				break;
+			case 'deep':
+				modelToUse = 'llama-3.1-sonar-huge-128k-online';
+				break;
+			case 'reasoning':
+				modelToUse = 'llama-3.1-sonar-reasoning-128k-online';
+				break;
+			default:
+				modelToUse = 'llama-3.1-sonar-large-128k-online'; // Safe default
+		}
 
 		// Get research-mode-specific Perplexity parameters
 		let perplexityParams = this.settings.comprehensivePerplexity; // default
@@ -1869,58 +1896,152 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 			}
 		}
 
-		// Build request body with all Perplexity API parameters
+		// Build minimal request body with only valid Perplexity API parameters
 		const requestBody: any = {
 			model: modelToUse,
 			messages: [{
 				role: "user",
 				content: query
-			}],
-			max_tokens: perplexityParams.max_tokens,
-			temperature: perplexityParams.temperature,
-			top_p: perplexityParams.top_p,
-			top_k: perplexityParams.top_k,
-			frequency_penalty: perplexityParams.frequency_penalty,
-			presence_penalty: perplexityParams.presence_penalty,
-			return_citations: perplexityParams.return_citations,
-			return_images: perplexityParams.return_images,
-			return_related_questions: perplexityParams.return_related_questions
+			}]
 		};
 
-		// Add optional search filters if configured
-		if (perplexityParams.search_domain_filter.length > 0) {
+		// Add only supported parameters
+		if (perplexityParams.max_tokens && perplexityParams.max_tokens !== 2000) {
+			requestBody.max_tokens = perplexityParams.max_tokens;
+		}
+		
+		if (perplexityParams.temperature !== undefined && perplexityParams.temperature !== 0.6) {
+			requestBody.temperature = perplexityParams.temperature;
+		}
+		
+		if (perplexityParams.top_p !== undefined && perplexityParams.top_p !== 0.9) {
+			requestBody.top_p = perplexityParams.top_p;
+		}
+
+		// Add Perplexity-specific features if enabled
+		if (perplexityParams.return_citations) {
+			requestBody.return_citations = true;
+		}
+		
+		if (perplexityParams.return_images) {
+			requestBody.return_images = true;
+		}
+		
+		if (perplexityParams.return_related_questions) {
+			requestBody.return_related_questions = true;
+		}
+
+		// Add search filters if configured
+		if (perplexityParams.search_domain_filter && perplexityParams.search_domain_filter.length > 0) {
 			requestBody.search_domain_filter = perplexityParams.search_domain_filter;
 		}
 		
-		if (perplexityParams.search_recency_filter) {
+		if (perplexityParams.search_recency_filter && perplexityParams.search_recency_filter !== 'month') {
 			requestBody.search_recency_filter = perplexityParams.search_recency_filter;
 		}
 
-		// Add web search options
-		if (perplexityParams.search_context_size > 0) {
-			requestBody.web_search_options = {
-				search_context_size: perplexityParams.search_context_size
-			};
+		console.log('🔍 Perplexity API Request:', JSON.stringify(requestBody, null, 2));
+
+		try {
+			const response = await requestUrl({
+				url: 'https://api.perplexity.ai/chat/completions',
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			const data = response.json;
+			console.log('✅ Perplexity API Response:', data);
+			
+			const message = data.choices?.[0]?.message?.content;
+			
+			if (!message) {
+				throw new Error('No response content from Perplexity API');
+			}
+
+			return message;
+			
+		} catch (error: any) {
+			console.error('❌ Perplexity API Error:', error);
+			console.error('Status:', error.status);
+			console.error('Response:', error.text);
+			
+			// Provide detailed error messages
+			if (error.status === 400) {
+				throw new Error(`Perplexity API 400 Error: ${error.text || 'Invalid request format'}\nModel: ${modelToUse}\nCheck console for request details.`);
+			} else if (error.status === 401) {
+				throw new Error('Perplexity API key is invalid or expired. Please check your API key.');
+			} else if (error.status === 403) {
+				throw new Error('Perplexity API access forbidden. Check your subscription status.');
+			} else if (error.status === 429) {
+				throw new Error('Perplexity API rate limit exceeded. Please wait and try again.');
+			} else {
+				throw new Error(`Perplexity API Error (${error.status}): ${error.text || error.message}`);
+			}
 		}
+	}
 
-		const response = await requestUrl({
-			url: 'https://api.perplexity.ai/chat/completions',
-			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(requestBody)
-		});
-
-		const data = response.json;
-		const message = data.choices?.[0]?.message?.content;
+	// Test method for debugging Perplexity API
+	async testPerplexityAPI(): Promise<void> {
+		console.log('🧪 Testing Perplexity API...');
+		console.log('API Key exists:', !!this.settings.perplexityApiKey);
+		console.log('API Key prefix:', this.settings.perplexityApiKey?.substring(0, 8) + '...');
 		
-		if (!message) {
-			throw new Error('No response from Perplexity');
+		// Test with minimal request first
+		const testBody = {
+			model: "llama-3.1-sonar-large-128k-online",  // Use Pro model
+			messages: [
+				{
+					role: "user",
+					content: "Hello! Can you tell me what is the capital of France? This is just a test."
+				}
+			],
+			max_tokens: 100,
+			temperature: 0.7
+		};
+		
+		console.log('📤 Test Request Body:', JSON.stringify(testBody, null, 2));
+		
+		try {
+			const response = await requestUrl({
+				url: 'https://api.perplexity.ai/chat/completions',
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(testBody)
+			});
+			
+			console.log('✅ Success! Response:', response.json);
+			new Notice('✅ Perplexity API test successful! Check console for details.');
+			
+		} catch (error: any) {
+			console.error('❌ Perplexity API test failed:', error);
+			console.error('Status:', error.status);
+			console.error('Response text:', error.text);
+			
+			// Show detailed error to user
+			let errorMessage = `❌ Perplexity API test failed!\n\n`;
+			errorMessage += `Status: ${error.status}\n`;
+			errorMessage += `Error: ${error.text || error.message}\n\n`;
+			
+			if (error.status === 400) {
+				errorMessage += `Likely cause: Invalid request format or model name\n`;
+				errorMessage += `Check console for full request details.`;
+			} else if (error.status === 401) {
+				errorMessage += `Likely cause: Invalid API key\n`;
+				errorMessage += `Make sure your API key starts with "pplx-"`;
+			} else if (error.status === 403) {
+				errorMessage += `Likely cause: No access to this model\n`;
+				errorMessage += `Check your Perplexity subscription status`;
+			}
+			
+			new Notice(errorMessage, 10000); // Show for 10 seconds
 		}
-
-		return message;
 	}
 
 	async searchWithTavily(query: string): Promise<string> {
