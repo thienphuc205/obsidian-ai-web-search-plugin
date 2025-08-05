@@ -217,11 +217,11 @@ export const CHAT_VIEW_TYPE = "gemini-chat-view";
 
 // Chat View Class
 export class GeminiChatView extends ItemView {
-	private chatContainer!: HTMLElement;
-	private inputContainer!: HTMLElement;
-	private messageContainer!: HTMLElement;
+	private chatContainer: HTMLElement;
+	private inputContainer: HTMLElement;
+	private messageContainer: HTMLElement;
 	private plugin: GeminiWebSearchPlugin;
-	public currentResearchMode!: {
+	public currentResearchMode: {
 		id: string;
 		label: string;
 		description: string;
@@ -486,7 +486,7 @@ export class GeminiChatView extends ItemView {
 			}
 
 		} catch (error) {
-			this.updateMessage(thinkingId, `Error: ${error instanceof Error ? error.message : String(error)}`);
+			this.updateMessage(thinkingId, `Error: ${error.message}`);
 		}
 	}
 
@@ -688,7 +688,7 @@ export class GeminiChatView extends ItemView {
 
 // Enhanced Main Plugin Class
 export default class GeminiWebSearchPlugin extends Plugin {
-	settings!: GeminiWebSearchSettings;
+	settings: GeminiWebSearchSettings;
 
 	async onload() {
 		await this.loadSettings();
@@ -711,7 +711,7 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		this.addCommand({
 			id: 'gemini-web-search-selection',
 			name: 'AI Web Search: Research with selected text',
-			editorCallback: (editor: Editor, ctx) => {
+			editorCallback: (editor: Editor, view: MarkdownView) => {
 				const selection = editor.getSelection();
 				if (selection) {
 					this.performWebSearchAndInsert(selection, editor);
@@ -724,7 +724,7 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		this.addCommand({
 			id: 'gemini-web-search-prompt',
 			name: 'AI Web Search: Custom query',
-			editorCallback: (editor: Editor, ctx) => {
+			editorCallback: (editor: Editor, view: MarkdownView) => {
 				this.promptForCustomSearch(editor);
 			}
 		});
@@ -1434,7 +1434,7 @@ Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu
 
 		} catch (error) {
 			console.error('Exa search error:', error);
-			throw new Error(`Exa search failed: ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(`Exa search failed: ${error.message}`);
 		}
 	}
 
@@ -1452,7 +1452,7 @@ Bạn là một chuyên gia có kiến thức sâu rộng. Hãy trả lời câu
 			
 			new Notice('Search complete!');
 		} catch (error) {
-			new Notice(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
+			new Notice(`Search failed: ${error.message}`);
 		}
 	}
 
@@ -1667,8 +1667,8 @@ class GeminiSettingTab extends PluginSettingTab {
 				.addOption('replace', '🔄 Replace - Replace selected text with AI response')
 				.addOption('append', '➕ Append - Insert AI response at cursor position')
 				.setValue(this.plugin.settings.insertMode)
-				.onChange(async (value) => {
-					this.plugin.settings.insertMode = value as 'replace' | 'append';
+				.onChange(async (value: 'replace' | 'append') => {
+					this.plugin.settings.insertMode = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -1925,8 +1925,8 @@ class GeminiSettingTab extends PluginSettingTab {
 				dropdown.addOption('keyword', '🔤 Keyword - Traditional exact word matching, faster');
 				dropdown.addOption('fast', '⚡ Fast - Ultra-fast 425ms search, optimized for speed');
 				dropdown.setValue(this.plugin.settings.exaSearchType);
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.exaSearchType = value as 'auto' | 'neural' | 'keyword' | 'fast';
+				dropdown.onChange(async (value: 'auto' | 'neural' | 'keyword' | 'fast') => {
+					this.plugin.settings.exaSearchType = value;
 					await this.plugin.saveSettings();
 				});
 			});
@@ -2255,6 +2255,7 @@ class GeminiSettingTab extends PluginSettingTab {
 				this.plugin.settings.comprehensivePrompt = DEFAULT_SETTINGS.comprehensivePrompt;
 				this.plugin.settings.deepPrompt = DEFAULT_SETTINGS.deepPrompt;
 				this.plugin.settings.reasoningPrompt = DEFAULT_SETTINGS.reasoningPrompt;
+				this.plugin.saveSettings();
 			}
 		);
 	}
