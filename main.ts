@@ -383,6 +383,8 @@ export class GeminiChatView extends ItemView {
 		perplexityModel: string;
 		exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast';
 		exaCategory: string;
+		providerLock?: string;
+		requiresUrl?: boolean;
 	};
 
 	constructor(leaf: WorkspaceLeaf, plugin: GeminiWebSearchPlugin) {
@@ -476,11 +478,56 @@ export class GeminiChatView extends ItemView {
 		// Set current value
 		providerDropdown.value = this.plugin.settings.provider;
 
+		// Gemini model selector (initially hidden)
+		const modelContainer = providerContainer.createEl('span', { cls: 'model-container' });
+		modelContainer.createEl('span', { 
+			text: 'Model: ',
+			cls: 'model-label'
+		});
+
+		const modelDropdown = modelContainer.createEl('select', { 
+			cls: 'model-dropdown'
+		});
+		
+		// Add Gemini model options
+		modelDropdown.createEl('option', { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro' });
+		modelDropdown.createEl('option', { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' });
+		modelDropdown.createEl('option', { value: 'gemini-2.5-flash-lite', text: 'Gemini 2.5 Flash Lite' });
+		
+		// Set default value
+		modelDropdown.value = this.plugin.settings.geminiModel;
+
+		// Handle model change
+		modelDropdown.addEventListener('change', async (e) => {
+			const newModel = (e.target as HTMLSelectElement).value;
+			this.plugin.settings.geminiModel = newModel;
+			await this.plugin.saveSettings();
+		});
+
+		// Function to update model container visibility
+		const updateModelVisibility = () => {
+			const isYouTubeMode = this.currentResearchMode?.id === 'youtube';
+			const isGeminiProvider = this.plugin.settings.provider === 'gemini';
+			modelContainer.style.display = (isYouTubeMode || isGeminiProvider) ? 'inline' : 'none';
+		};
+
+		// Initial visibility
+		updateModelVisibility();
+
 		// Handle provider change
 		providerDropdown.addEventListener('change', async (e) => {
 			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily' | 'exa';
+			
+			// Check if YouTube mode is active and trying to switch from Gemini
+			if (this.currentResearchMode?.id === 'youtube' && newProvider !== 'gemini') {
+				new Notice('🎬 YouTube mode requires Gemini provider. Please switch to a different research mode first.');
+				providerDropdown.value = 'gemini'; // Reset to Gemini
+				return;
+			}
+			
 			this.plugin.settings.provider = newProvider;
 			await this.plugin.saveSettings();
+			updateModelVisibility();
 			
 			// Check if API key is configured
 			const hasApiKey = this.checkApiKey(newProvider);
@@ -518,8 +565,35 @@ export class GeminiChatView extends ItemView {
 		}
 	}
 
-	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string, exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast', exaCategory: string}) {
+	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string, exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast', exaCategory: string, providerLock?: string, requiresUrl?: boolean}) {
 		this.currentResearchMode = mode;
+		
+		// Handle YouTube mode special requirements
+		if (mode.id === 'youtube') {
+			// Force switch to Gemini provider if not already
+			if (this.plugin.settings.provider !== 'gemini') {
+				this.plugin.settings.provider = 'gemini';
+				this.plugin.saveSettings();
+				
+				// Update provider dropdown UI
+				const providerDropdown = this.containerEl.querySelector('.provider-dropdown') as HTMLSelectElement;
+				if (providerDropdown) {
+					providerDropdown.value = 'gemini';
+				}
+				
+				new Notice('🎬 Switched to Gemini provider for YouTube video analysis');
+			}
+			
+			// Set model to gemini-2.5-pro (best for video analysis)
+			this.plugin.settings.geminiModel = 'gemini-2.5-pro';
+			this.plugin.saveSettings();
+			
+			// Update model dropdown UI
+			const modelDropdown = this.containerEl.querySelector('.model-dropdown') as HTMLSelectElement;
+			if (modelDropdown) {
+				modelDropdown.value = 'gemini-2.5-pro';
+			}
+		}
 		
 		// Update button states for bottom buttons
 		const buttons = this.containerEl.querySelectorAll('.research-mode-btn-small');
@@ -529,6 +603,14 @@ export class GeminiChatView extends ItemView {
 				btn.addClass('active');
 			}
 		});
+		
+		// Update model container visibility
+		const modelContainer = this.containerEl.querySelector('.model-container') as HTMLElement;
+		if (modelContainer) {
+			const isYouTubeMode = mode.id === 'youtube';
+			const isGeminiProvider = this.plugin.settings.provider === 'gemini';
+			modelContainer.style.display = (isYouTubeMode || isGeminiProvider) ? 'inline' : 'none';
+		}
 		
 		// Update plugin settings based on provider
 		if (this.plugin.settings.provider === 'gemini') {
@@ -614,6 +696,17 @@ export class GeminiChatView extends ItemView {
 				perplexityModel: 'sonar-reasoning',
 				exaSearchType: 'neural' as const,
 				exaCategory: 'research paper'
+			},
+			{
+				id: 'youtube',
+				label: '🎬 YouTube',
+				description: 'Video analysis',
+				model: 'gemini-2.5-pro',
+				perplexityModel: 'sonar-pro', // Not used but required for interface
+				exaSearchType: 'auto' as const,
+				exaCategory: '',
+				providerLock: 'gemini',
+				requiresUrl: true
 			}
 		];
 
@@ -651,6 +744,14 @@ export class GeminiChatView extends ItemView {
 
 	async handleSend(message: string, insertToNote: boolean, saveToFolder: boolean = false) {
 		if (!message.trim()) return;
+
+		// YouTube mode validation
+		if (this.currentResearchMode?.id === 'youtube') {
+			if (!this.isValidYouTubeUrl(message.trim())) {
+				new Notice('🎬 Please paste a valid YouTube URL for video analysis\n\nSupported formats:\n• youtube.com/watch?v=VIDEO_ID\n• youtu.be/VIDEO_ID');
+				return;
+			}
+		}
 
 		// Clear input
 		const textarea = this.inputContainer.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
@@ -743,6 +844,17 @@ export class GeminiChatView extends ItemView {
 			new Notice(`Failed to save chat: ${error instanceof Error ? error.message : String(error)}`);
 			console.error('Save to folder error:', error);
 		}
+	}
+
+	// YouTube URL validation helper
+	isValidYouTubeUrl(url: string): boolean {
+		const youtubeRegex = /^https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S+)?$/;
+		return youtubeRegex.test(url.trim());
+	}
+
+	extractYouTubeVideoId(url: string): string | null {
+		const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+		return match ? match[1] : null;
 	}
 
 	formatChatNote(): string {
@@ -1431,6 +1543,9 @@ export default class GeminiWebSearchPlugin extends Plugin {
 				case 'reasoning':
 					geminiParams = this.settings.reasoning;
 					break;
+				case 'youtube':
+					geminiParams = this.settings.comprehensive; // Use comprehensive params for YouTube
+					break;
 			}
 		}
 
@@ -1449,6 +1564,9 @@ export default class GeminiWebSearchPlugin extends Plugin {
 					break;
 				case 'reasoning':
 					enhancedPrompt = this.settings.reasoningPrompt.replace('{query}', query);
+					break;
+				case 'youtube':
+					enhancedPrompt = `Analyze this YouTube video and provide a comprehensive summary and insights: ${query}`;
 					break;
 				default:
 					enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
@@ -1514,6 +1632,26 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 
 **Requirements:** Critical thinking, excellent logical analysis, self-check for logical gaps.`;
 					break;
+				case 'youtube':
+					enhancedPrompt = `### Task: YouTube Video Analysis
+
+**Video URL:** ${query}
+
+**Analysis Framework:**
+1. **Video Overview** - Title, creator, duration, upload date
+2. **Content Summary** - Main topics and key points covered
+3. **Detailed Analysis** - Important insights, data, arguments presented
+4. **Context and Relevance** - Why this content matters, target audience
+5. **Key Takeaways** - Most valuable information and actionable insights
+6. **Critical Assessment** - Strengths, limitations, credibility
+
+**Requirements:** 
+- Comprehensive analysis of video content
+- Focus on factual information and key insights
+- Highlight important quotes or data points
+- Assess credibility and educational value
+- 600-800 words, well-structured and informative`;
+					break;
 				default:
 					enhancedPrompt = `Please provide comprehensive analysis on: "${query}" with accurate information and reliable sources.`;
 			}
@@ -1521,20 +1659,46 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 
 		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
 
-		const requestBody = {
-			contents: [{
-				parts: [{ text: enhancedPrompt }]
-			}],
-			tools: [{
-				google_search: {}
-			}],
-			generationConfig: {
-				temperature: geminiParams.geminiTemperature,
-				topP: geminiParams.geminiTopP,
-				topK: geminiParams.geminiTopK,
-				maxOutputTokens: geminiParams.geminiMaxTokens
-			}
-		};
+		let requestBody: any;
+
+		// Handle YouTube video analysis
+		if (researchMode?.id === 'youtube' && chatView?.isValidYouTubeUrl(query)) {
+			requestBody = {
+				contents: [{
+					parts: [
+						{ text: enhancedPrompt },
+						{ 
+							fileData: {
+								mimeType: "video/*",
+								fileUri: query
+							}
+						}
+					]
+				}],
+				generationConfig: {
+					temperature: geminiParams.geminiTemperature,
+					topP: geminiParams.geminiTopP,
+					topK: geminiParams.geminiTopK,
+					maxOutputTokens: geminiParams.geminiMaxTokens
+				}
+			};
+		} else {
+			// Regular web search mode
+			requestBody = {
+				contents: [{
+					parts: [{ text: enhancedPrompt }]
+				}],
+				tools: [{
+					google_search: {}
+				}],
+				generationConfig: {
+					temperature: geminiParams.geminiTemperature,
+					topP: geminiParams.geminiTopP,
+					topK: geminiParams.geminiTopK,
+					maxOutputTokens: geminiParams.geminiMaxTokens
+				}
+			};
+		}
 
 		const response = await requestUrl({
 			url: apiUrl,

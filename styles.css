@@ -299,6 +299,11 @@ If your plugin does not need CSS, delete this file.
     border-color: #f59e0b !important;
 }
 
+.research-mode-youtube.active {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+}
+
 /* Clean Chat Layout */
 .gemini-chat-container {
     height: 100%;
@@ -344,6 +349,37 @@ If your plugin does not need CSS, delete this file.
     padding: 2px 6px;
     border-radius: 3px;
     display: inline-block;
+}
+
+/* Model selector styling */
+.model-container {
+    margin-left: 12px;
+}
+
+.model-label {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+.model-dropdown {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--text-normal);
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.model-dropdown:hover {
+    background: var(--background-modifier-hover);
+}
+
+.model-dropdown:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
 }
 
 .gemini-chat-messages {
@@ -499,6 +535,29 @@ If your plugin does not need CSS, delete this file.
     
     .gemini-chat-container {
         padding: 5px;
+    }
+    
+    .provider-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .model-container {
+        margin-left: 0;
+        margin-top: 4px;
+    }
+}
+
+@media (max-width: 600px) {
+    .research-mode-buttons-bottom {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .research-mode-btn-small {
+        width: 100%;
+        text-align: center;
     }
 }
 
