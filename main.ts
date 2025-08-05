@@ -1251,10 +1251,39 @@ export class GeminiChatView extends ItemView {
 		// Auto-detect bare URLs and make them clickable
 		html = html.replace(/(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1 🔗</a>');
 		
-		// Handle citation links [1], [2], etc. - make them reference-style
-		html = html.replace(/\[(\d+)\]/g, '<a href="#citation-$1" class="citation-link">[$1]</a>');
+		// Handle citation links [1], [2], etc. - make them scroll to sources section
+		html = html.replace(/\[(\d+)\]/g, '<a href="#citation-$1" class="citation-link" onclick="this.closest(\'.message-content\').querySelector(\'h4:contains(Sources), strong:contains(Sources)\')?.scrollIntoView({behavior: \'smooth\', block: \'center\'})">[$1]</a>');
 		
 		element.innerHTML = html;
+		
+		// Add click handlers for citation links to scroll to sources
+		const citationLinks = element.querySelectorAll('.citation-link');
+		citationLinks.forEach(link => {
+			link.addEventListener('click', (e) => {
+				e.preventDefault();
+				// Find the sources section and scroll to it
+				const messageElement = element.closest('.message-content');
+				if (messageElement) {
+					const sourcesHeader = Array.from(messageElement.querySelectorAll('strong, h4'))
+						.find(el => el.textContent?.includes('Sources')) as HTMLElement;
+					if (sourcesHeader) {
+						sourcesHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						// Highlight the sources section briefly
+						sourcesHeader.style.backgroundColor = 'var(--interactive-accent)';
+						sourcesHeader.style.color = 'white';
+						sourcesHeader.style.padding = '8px';
+						sourcesHeader.style.borderRadius = '4px';
+						sourcesHeader.style.transition = 'all 0.3s ease';
+						
+						setTimeout(() => {
+							sourcesHeader.style.backgroundColor = '';
+							sourcesHeader.style.color = '';
+							sourcesHeader.style.padding = '';
+						}, 2000);
+					}
+				}
+			});
+		});
 	}
 
 	async onClose() {
@@ -1964,6 +1993,13 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 
 			const data = response.json;
 			console.log('✅ Perplexity API Response:', data);
+			console.log('📊 Response structure keys:', Object.keys(data));
+			if (data.choices?.[0]) {
+				console.log('🔍 Choice structure:', Object.keys(data.choices[0]));
+				if (data.choices[0].message) {
+					console.log('💬 Message structure:', Object.keys(data.choices[0].message));
+				}
+			}
 			
 			const message = data.choices?.[0]?.message?.content;
 			
@@ -2000,9 +2036,15 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 	enhancePerplexityResponse(content: string, responseData: any): string {
 		let enhanced = content;
 		
+		console.log('🔧 Processing Perplexity response for citations...');
+		console.log('📝 Original content length:', content.length);
+		
 		// Extract citations from response data if available
 		const citations = responseData.citations || [];
 		const relatedQuestions = responseData.related_questions || [];
+		
+		console.log('📚 Citations from API:', citations);
+		console.log('❓ Related questions from API:', relatedQuestions);
 		
 		// Add sources section if citations are available
 		if (citations && citations.length > 0) {
@@ -2017,8 +2059,9 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 				}
 			});
 		} else {
-			// If no citations in response data, try to extract from content
-			enhanced = this.extractAndFormatCitations(enhanced);
+			// If no citations in response data, extract from content and try to get sources
+			console.log('🔍 No citations in API response, extracting from content...');
+			enhanced = this.extractAndFormatCitationsAdvanced(enhanced);
 		}
 		
 		// Add related questions if available
@@ -2029,6 +2072,7 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 			});
 		}
 		
+		console.log('✅ Enhanced content length:', enhanced.length);
 		return enhanced;
 	}
 
@@ -2054,6 +2098,80 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 			});
 			
 			content += "\n*Note: Source links depend on Perplexity's citation data availability*";
+		}
+		
+		return content;
+	}
+
+	// Advanced method to extract citations and try to find actual sources
+	extractAndFormatCitationsAdvanced(content: string): string {
+		console.log('🔍 Advanced citation extraction...');
+		
+		// Pattern to match citations like [1], [2], etc.
+		const citationPattern = /\[(\d+)\]/g;
+		const citations = new Set<string>();
+		
+		// Extract citation numbers
+		let match;
+		while ((match = citationPattern.exec(content)) !== null) {
+			citations.add(match[1]);
+		}
+		
+		console.log('📊 Found citation numbers:', Array.from(citations));
+		
+		// Check if there's already a sources section in the content
+		const hasSourcesSection = content.includes('**Sources:**') || content.includes('Sources:');
+		
+		if (citations.size > 0) {
+			if (!hasSourcesSection) {
+				// Try to extract sources from the end of content if they exist
+				const lines = content.split('\n');
+				const sourceLines: string[] = [];
+				let foundSourceStart = false;
+				
+				// Look for source-like patterns at the end
+				for (let i = lines.length - 1; i >= 0; i--) {
+					const line = lines[i].trim();
+					
+					// Check if this looks like a source line
+					if (line.match(/^\d+\.\s*https?:\/\//) || 
+						line.match(/^\[\d+\]\s*https?:\/\//) ||
+						line.match(/^https?:\/\/\S+/)) {
+						sourceLines.unshift(line);
+						foundSourceStart = true;
+					} else if (foundSourceStart && line.length > 0) {
+						// Stop if we hit non-source content
+						break;
+					}
+				}
+				
+				if (sourceLines.length > 0) {
+					console.log('📚 Found source lines:', sourceLines);
+					
+					// Remove source lines from original content
+					const contentWithoutSources = lines.slice(0, lines.length - sourceLines.length).join('\n').trim();
+					
+					// Add properly formatted sources section
+					content = contentWithoutSources + "\n\n---\n**Sources:**\n";
+					
+					sourceLines.forEach((sourceLine, index) => {
+						// Extract URL and title from source line
+						const urlMatch = sourceLine.match(/(https?:\/\/[^\s]+)/);
+						if (urlMatch) {
+							const url = urlMatch[1];
+							const title = sourceLine.replace(urlMatch[0], '').replace(/^\d+\.\s*/, '').replace(/^\[\d+\]\s*/, '').trim() || `Source ${index + 1}`;
+							content += `- [${title || url}](${url})\n`;
+						}
+					});
+				} else {
+					// No sources found, add placeholder
+					content += "\n\n---\n**Sources:**\n";
+					Array.from(citations).sort((a, b) => parseInt(a) - parseInt(b)).forEach(num => {
+						content += `- [Source ${num}](#citation-${num})\n`;
+					});
+					content += "\n*Note: Source links depend on Perplexity's citation data availability*";
+				}
+			}
 		}
 		
 		return content;
