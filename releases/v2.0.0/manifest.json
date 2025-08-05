@@ -1,0 +1,11 @@
+{
+	"id": "ai-web-search",
+	"name": "AI Web Search",
+	"version": "2.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "AI-powered web search plugin with chat interface. Supports Google Gemini, Perplexity, and Tavily for real-time research assistance.",
+	"author": "PhucThien",
+	"authorUrl": "https://github.com/phucthien",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
