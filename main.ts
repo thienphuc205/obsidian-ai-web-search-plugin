@@ -1233,7 +1233,7 @@ export class GeminiChatView extends ItemView {
 
 	// Parse inline markdown (bold, italic, links, code)
 	parseInlineMarkdown(element: HTMLElement, text: string) {
-		// Handle bold, italic, code, and links
+		// Handle bold, italic, code, and enhanced clickable links
 		let html = text;
 		
 		// Bold **text**
@@ -1245,8 +1245,14 @@ export class GeminiChatView extends ItemView {
 		// Inline code `text`
 		html = html.replace(/`(.*?)`/g, '<code>$1</code>');
 		
-		// Links [text](url)
-		html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+		// Enhanced Links [text](url) - make them actually clickable with external link styling
+		html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="external-link">$1 🔗</a>');
+		
+		// Auto-detect bare URLs and make them clickable
+		html = html.replace(/(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1 🔗</a>');
+		
+		// Handle citation links [1], [2], etc. - make them reference-style
+		html = html.replace(/\[(\d+)\]/g, '<a href="#citation-$1" class="citation-link">[$1]</a>');
 		
 		element.innerHTML = html;
 	}
@@ -1902,7 +1908,10 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 			messages: [{
 				role: "user",
 				content: query
-			}]
+			}],
+			// Force return citations and related questions for enhanced responses
+			return_citations: true,
+			return_related_questions: true
 		};
 
 		// Add only supported parameters
@@ -1962,7 +1971,10 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 				throw new Error('No response content from Perplexity API');
 			}
 
-			return message;
+			// Process and enhance Perplexity response with sources and related questions
+			const enhancedResponse = this.enhancePerplexityResponse(message, data);
+			
+			return enhancedResponse;
 			
 		} catch (error: any) {
 			console.error('❌ Perplexity API Error:', error);
@@ -1982,6 +1994,69 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 				throw new Error(`Perplexity API Error (${error.status}): ${error.text || error.message}`);
 			}
 		}
+	}
+
+	// Enhanced method to process Perplexity responses with sources and related questions
+	enhancePerplexityResponse(content: string, responseData: any): string {
+		let enhanced = content;
+		
+		// Extract citations from response data if available
+		const citations = responseData.citations || [];
+		const relatedQuestions = responseData.related_questions || [];
+		
+		// Add sources section if citations are available
+		if (citations && citations.length > 0) {
+			enhanced += "\n\n---\n**Sources:**\n";
+			
+			citations.forEach((citation: any, index: number) => {
+				const title = citation.title || citation.url || `Source ${index + 1}`;
+				const url = citation.url;
+				
+				if (url) {
+					enhanced += `- [${title}](${url})\n`;
+				}
+			});
+		} else {
+			// If no citations in response data, try to extract from content
+			enhanced = this.extractAndFormatCitations(enhanced);
+		}
+		
+		// Add related questions if available
+		if (relatedQuestions && relatedQuestions.length > 0) {
+			enhanced += "\n\n**Related Questions:**\n";
+			relatedQuestions.forEach((question: string) => {
+				enhanced += `- ${question}\n`;
+			});
+		}
+		
+		return enhanced;
+	}
+
+	// Method to extract and format citations from content
+	extractAndFormatCitations(content: string): string {
+		// Pattern to match citations like [1], [2], etc.
+		const citationPattern = /\[(\d+)\]/g;
+		const citations = new Set<string>();
+		
+		// Extract citation numbers
+		let match;
+		while ((match = citationPattern.exec(content)) !== null) {
+			citations.add(match[1]);
+		}
+		
+		// If we found citations but no sources section, add placeholder
+		if (citations.size > 0 && !content.includes('**Sources:**')) {
+			content += "\n\n---\n**Sources:**\n";
+			
+			// Add placeholder source entries
+			Array.from(citations).sort((a, b) => parseInt(a) - parseInt(b)).forEach(num => {
+				content += `- [Source ${num}](#citation-${num})\n`;
+			});
+			
+			content += "\n*Note: Source links depend on Perplexity's citation data availability*";
+		}
+		
+		return content;
 	}
 
 	// Test method for debugging Perplexity API

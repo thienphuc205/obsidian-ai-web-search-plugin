@@ -888,3 +888,94 @@ If your plugin does not need CSS, delete this file.
 	border-color: rgba(220, 38, 38, 0.5);
 	transform: translateY(-1px);
 }
+
+/* Enhanced External Links Styling */
+.external-link {
+	color: var(--interactive-accent) !important;
+	text-decoration: none;
+	border-bottom: 1px dotted var(--interactive-accent);
+	transition: all 0.2s ease;
+	font-weight: 500;
+}
+
+.external-link:hover {
+	color: var(--interactive-accent-hover) !important;
+	border-bottom-style: solid;
+	background: var(--background-modifier-hover);
+	padding: 0 4px;
+	border-radius: 4px;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.external-link:visited {
+	opacity: 0.8;
+}
+
+/* Citation Links Styling */
+.citation-link {
+	background: var(--background-modifier-border);
+	color: var(--text-accent);
+	padding: 2px 6px;
+	border-radius: 12px;
+	font-size: 0.85em;
+	font-weight: 600;
+	text-decoration: none;
+	margin: 0 2px;
+	border: 1px solid var(--background-modifier-border-hover);
+	transition: all 0.2s ease;
+}
+
+.citation-link:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	transform: scale(1.1);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Sources Section Enhanced Styling */
+.message-content h4 {
+	color: var(--text-accent);
+	margin-top: 1.5rem;
+	margin-bottom: 0.8rem;
+	border-bottom: 2px solid var(--background-modifier-border);
+	padding-bottom: 0.5rem;
+	font-weight: 600;
+}
+
+.message-content hr {
+	border: none;
+	height: 1px;
+	background: linear-gradient(to right, transparent, var(--background-modifier-border), transparent);
+	margin: 1.5rem 0;
+}
+
+/* Related Questions Styling */
+.message-content ul li {
+	margin-bottom: 0.5rem;
+	padding-left: 0.5rem;
+	border-left: 3px solid var(--background-modifier-border);
+	transition: border-color 0.2s ease;
+}
+
+.message-content ul li:hover {
+	border-left-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	border-radius: 0 4px 4px 0;
+	padding-left: 0.8rem;
+}
+
+/* Source link special styling */
+.message-content a[href*="http"] {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	word-break: break-word;
+}
+
+/* Note text styling */
+.message-content em {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	font-style: italic;
+}
