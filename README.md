@@ -1,5 +1,7 @@
 # AI Web Search Plugin for Obsidian
 
+> **⚠️ IMPORTANT: Please restart Obsidian after successfully updating your API keys for optimal performance!**
+
 An advanced AI-powered web search plugin that brings real-time research capabilities directly into your Obsidian workspace.
 
 ## ✨ Features
