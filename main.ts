@@ -1858,23 +1858,23 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
 		const researchMode = chatView?.currentResearchMode;
 
-		// Use correct Perplexity model names for Pro subscription
+		// Use correct Perplexity model names (updated Feb 2025)
 		let modelToUse: string;
 		switch (researchMode?.id) {
 			case 'quick':
-				modelToUse = 'llama-3.1-sonar-small-128k-online';
+				modelToUse = 'sonar';
 				break;
 			case 'comprehensive':
-				modelToUse = 'llama-3.1-sonar-large-128k-online';
+				modelToUse = 'sonar-pro';
 				break;
 			case 'deep':
-				modelToUse = 'llama-3.1-sonar-huge-128k-online';
+				modelToUse = 'sonar-pro'; // Use pro for deep analysis
 				break;
 			case 'reasoning':
-				modelToUse = 'llama-3.1-sonar-reasoning-128k-online';
+				modelToUse = 'sonar-reasoning-pro';
 				break;
 			default:
-				modelToUse = 'llama-3.1-sonar-large-128k-online'; // Safe default
+				modelToUse = 'sonar'; // Safe default
 		}
 
 		// Get research-mode-specific Perplexity parameters
@@ -1992,7 +1992,7 @@ You are a domain expert with extensive knowledge. Please answer the following qu
 		
 		// Test with minimal request first
 		const testBody = {
-			model: "llama-3.1-sonar-large-128k-online",  // Use Pro model
+			model: "sonar",  // Use new valid model name
 			messages: [
 				{
 					role: "user",
