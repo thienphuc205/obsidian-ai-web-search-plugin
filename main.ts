@@ -1,113 +1,618 @@
-import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, requestUrl, Modal } from 'obsidian';
+import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, requestUrl, ItemView, WorkspaceLeaf } from 'obsidian';
 
-interface GeminiPluginSettings {
+// Enhanced settings with multiple providers
+interface GeminiWebSearchSettings {
+	provider: 'gemini' | 'perplexity' | 'tavily';
 	geminiApiKey: string;
+	perplexityApiKey: string;
+	tavilyApiKey: string;
+	geminiModel: string;
+	perplexityModel: string;
+	insertMode: 'replace' | 'append';
 	maxResults: number;
 	includeImages: boolean;
-	defaultModel: string;
 }
 
-const DEFAULT_SETTINGS: GeminiPluginSettings = {
+const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
+	provider: 'gemini',
 	geminiApiKey: '',
+	perplexityApiKey: '',
+	tavilyApiKey: '',
+	geminiModel: 'gemini-2.5-flash',
+	perplexityModel: 'sonar-pro',
+	insertMode: 'replace',
 	maxResults: 5,
-	includeImages: false,
-	defaultModel: 'gemini-2.5-flash'
+	includeImages: false
 }
 
-interface GeminiResponse {
-	candidates: Array<{
-		content: {
-			parts: Array<{
-				text: string;
-			}>;
+// Chat View constants
+export const CHAT_VIEW_TYPE = "gemini-chat-view";
+
+// Chat View Class
+export class GeminiChatView extends ItemView {
+	private chatContainer: HTMLElement;
+	private inputContainer: HTMLElement;
+	private messageContainer: HTMLElement;
+	private plugin: GeminiWebSearchPlugin;
+	public currentResearchMode: {
+		id: string;
+		label: string;
+		description: string;
+		model: string;
+		perplexityModel: string;
+	};
+
+	constructor(leaf: WorkspaceLeaf, plugin: GeminiWebSearchPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
+
+	getViewType() {
+		return CHAT_VIEW_TYPE;
+	}
+
+	getDisplayText() {
+		return "Gemini Chat";
+	}
+
+	getIcon() {
+		return "message-circle";
+	}
+
+	async onOpen() {
+		const container = this.containerEl.children[1];
+		container.empty();
+		container.addClass('gemini-chat-container');
+
+		// Header
+		const header = container.createEl('div', { cls: 'gemini-chat-header' });
+		header.createEl('h3', { text: 'AI Web Search Chat' });
+		
+		// Provider selector container
+		const providerContainer = header.createEl('div', { cls: 'provider-container' });
+		
+		providerContainer.createEl('span', { 
+			text: 'Provider: ',
+			cls: 'provider-label'
+		});
+
+		// Provider dropdown
+		const providerDropdown = providerContainer.createEl('select', { cls: 'provider-dropdown' });
+		
+		// Add options with status indicators
+		const geminiOption = providerDropdown.createEl('option', { 
+			value: 'gemini', 
+			text: `Google Gemini ${this.checkApiKey('gemini') ? '✓' : '⚠️'}`
+		});
+		const perplexityOption = providerDropdown.createEl('option', { 
+			value: 'perplexity', 
+			text: `Perplexity AI ${this.checkApiKey('perplexity') ? '✓' : '⚠️'}`
+		});
+		const tavilyOption = providerDropdown.createEl('option', { 
+			value: 'tavily', 
+			text: `Tavily Search ${this.checkApiKey('tavily') ? '✓' : '⚠️'}`
+		});
+
+		// Set current value
+		providerDropdown.value = this.plugin.settings.provider;
+
+		// Handle provider change
+		providerDropdown.addEventListener('change', async (e) => {
+			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily';
+			this.plugin.settings.provider = newProvider;
+			await this.plugin.saveSettings();
+			
+			// Check if API key is configured
+			const hasApiKey = this.checkApiKey(newProvider);
+			if (hasApiKey) {
+				this.addMessage('system', `Switched to ${newProvider}. Ready for your questions!`);
+			} else {
+				this.addMessage('system', `⚠️ Switched to ${newProvider}, but API key not configured. Please add your API key in plugin settings.`);
+			}
+		});
+
+		// Message Container
+		this.messageContainer = container.createEl('div', { cls: 'gemini-chat-messages' });
+		
+		// Input Container
+		this.inputContainer = container.createEl('div', { cls: 'gemini-chat-input-container' });
+		this.createInputArea();
+
+		// Set default research mode
+		this.currentResearchMode = {
+			id: 'comprehensive',
+			label: '🔍 Comprehensive',
+			description: 'Balanced research with detailed analysis',
+			model: 'gemini-2.5-flash',
+			perplexityModel: 'sonar-pro'
 		};
-		groundingMetadata?: {
-			webSearchQueries?: string[];
-			searchEntryPoint?: {
-				renderedContent: string;
-			};
-			groundingChunks: Array<{
-				web?: {
-					uri: string;
-					title: string;
-				};
-			}>;
-			groundingSupports?: Array<{
-				segment: {
-					startIndex: number;
-					endIndex: number;
-					text: string;
-				};
-				groundingChunkIndices: number[];
-			}>;
-		};
-	}>;
+
+		// Welcome message
+		const hasApiKey = this.checkApiKey(this.plugin.settings.provider);
+		if (hasApiKey) {
+			this.addMessage('system', `Welcome! Ask me anything and I'll search the web for you using ${this.plugin.settings.provider}.`);
+		} else {
+			this.addMessage('system', `⚠️ Welcome! Please configure your ${this.plugin.settings.provider} API key in plugin settings before starting.`);
+		}
+	}
+
+	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string}) {
+		this.currentResearchMode = mode;
+		
+		// Update button states for bottom buttons
+		const buttons = this.containerEl.querySelectorAll('.research-mode-btn-small');
+		buttons.forEach(btn => {
+			btn.removeClass('active');
+			if (btn.getAttribute('data-mode') === mode.id) {
+				btn.addClass('active');
+			}
+		});
+		
+		// Update plugin settings based on provider
+		if (this.plugin.settings.provider === 'gemini') {
+			this.plugin.settings.geminiModel = mode.model;
+		} else if (this.plugin.settings.provider === 'perplexity') {
+			this.plugin.settings.perplexityModel = mode.perplexityModel;
+		}
+		
+		this.plugin.saveSettings();
+		
+		// Add system message about mode change
+		this.addMessage('system', `Research mode set to ${mode.label}: ${mode.description}`);
+	}
+
+	createInputArea() {
+		this.inputContainer.empty();
+		
+		const inputGroup = this.inputContainer.createEl('div', { cls: 'input-group' });
+		
+		const textarea = inputGroup.createEl('textarea', {
+			cls: 'gemini-chat-input',
+			attr: { 
+				placeholder: 'Ask anything...',
+				rows: '3'
+			}
+		});
+
+		const buttonGroup = inputGroup.createEl('div', { cls: 'button-group' });
+		
+		const sendButton = buttonGroup.createEl('button', {
+			cls: 'send-button',
+			text: 'Send'
+		});
+
+		const insertButton = buttonGroup.createEl('button', {
+			cls: 'insert-button', 
+			text: 'Send & Insert'
+		});
+
+		// Research Mode Buttons - moved to bottom
+		const researchModeContainer = this.inputContainer.createEl('div', { cls: 'research-mode-container-bottom' });
+		researchModeContainer.createEl('div', { text: 'Research Mode:', cls: 'research-mode-label-small' });
+		
+		const researchButtonsContainer = researchModeContainer.createEl('div', { cls: 'research-mode-buttons-bottom' });
+		
+		const researchModes = [
+			{
+				id: 'quick',
+				label: '⚡ Quick',
+				description: 'Fast answers',
+				model: 'gemini-2.5-flash-lite',
+				perplexityModel: 'sonar'
+			},
+			{
+				id: 'comprehensive',
+				label: '🔍 Comprehensive',
+				description: 'Balanced research',
+				model: 'gemini-2.5-flash',
+				perplexityModel: 'sonar-pro'
+			},
+			{
+				id: 'deep',
+				label: '🎯 Deep',
+				description: 'Expert analysis',
+				model: 'gemini-2.5-pro',
+				perplexityModel: 'sonar-deep-research'
+			},
+			{
+				id: 'reasoning',
+				label: '🧠 Reasoning',
+				description: 'Complex analysis',
+				model: 'gemini-2.5-pro',
+				perplexityModel: 'sonar-reasoning'
+			}
+		];
+
+		researchModes.forEach(mode => {
+			const button = researchButtonsContainer.createEl('button', {
+				cls: `research-mode-btn-small research-mode-${mode.id}`,
+				attr: { 'data-mode': mode.id },
+				text: mode.label
+			});
+			
+			button.addEventListener('click', () => {
+				this.setResearchMode(mode);
+				
+				// Update button states
+				const buttons = researchButtonsContainer.querySelectorAll('.research-mode-btn-small');
+				buttons.forEach(btn => btn.removeClass('active'));
+				button.addClass('active');
+			});
+		});
+
+		// Set default active button
+		researchButtonsContainer.querySelector('[data-mode="comprehensive"]')?.addClass('active');
+
+		// Event listeners
+		sendButton.onclick = () => this.handleSend(textarea.value, false);
+		insertButton.onclick = () => this.handleSend(textarea.value, true);
+		
+		textarea.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault();
+				this.handleSend(textarea.value, false);
+			}
+		});
+	}
+
+	async handleSend(message: string, insertToNote: boolean) {
+		if (!message.trim()) return;
+
+		// Clear input
+		const textarea = this.inputContainer.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+		textarea.value = '';
+
+		// Add user message
+		this.addMessage('user', message);
+
+		// Add thinking message
+		const thinkingId = this.addMessage('assistant', 'Searching the web...', true);
+
+		try {
+			const response = await this.plugin.performWebSearch(message);
+			
+			// Replace thinking message with response
+			this.updateMessage(thinkingId, response);
+
+			// Insert to note if requested
+			if (insertToNote) {
+				this.insertToActiveNote(response);
+			}
+
+		} catch (error) {
+			this.updateMessage(thinkingId, `Error: ${error.message}`);
+		}
+	}
+
+	addMessage(role: 'user' | 'assistant' | 'system', content: string, isThinking: boolean = false): string {
+		const messageId = Date.now().toString();
+		const messageDiv = this.messageContainer.createEl('div', { 
+			cls: `message ${role}`,
+			attr: { 'data-id': messageId }
+		});
+
+		if (role === 'user') {
+			messageDiv.createEl('div', { cls: 'message-role', text: 'You' });
+		} else if (role === 'assistant') {
+			messageDiv.createEl('div', { cls: 'message-role', text: 'AI Assistant' });
+		}
+
+		const contentDiv = messageDiv.createEl('div', { cls: 'message-content' });
+		
+		if (isThinking) {
+			contentDiv.addClass('thinking');
+		}
+		
+		contentDiv.textContent = content;
+
+		// Scroll to bottom
+		this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+
+		return messageId;
+	}
+
+	updateMessage(messageId: string, newContent: string) {
+		const messageEl = this.messageContainer.querySelector(`[data-id="${messageId}"]`);
+		if (messageEl) {
+			const contentEl = messageEl.querySelector('.message-content');
+			if (contentEl) {
+				contentEl.removeClass('thinking');
+				contentEl.textContent = newContent;
+			}
+		}
+	}
+
+	insertToActiveNote(content: string) {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (activeView) {
+			const editor = activeView.editor;
+			const cursor = editor.getCursor();
+			editor.replaceRange(`\n\n${content}\n`, cursor);
+			new Notice('Response inserted to note');
+		} else {
+			new Notice('No active note to insert into');
+		}
+	}
+
+	checkApiKey(provider: 'gemini' | 'perplexity' | 'tavily'): boolean {
+		switch (provider) {
+			case 'gemini':
+				return !!this.plugin.settings.geminiApiKey;
+			case 'perplexity':
+				return !!this.plugin.settings.perplexityApiKey;
+			case 'tavily':
+				return !!this.plugin.settings.tavilyApiKey;
+			default:
+				return false;
+		}
+	}
+
+	async onClose() {
+		// Clean up
+	}
 }
 
+// Enhanced Main Plugin Class
 export default class GeminiWebSearchPlugin extends Plugin {
-	settings: GeminiPluginSettings;
+	settings: GeminiWebSearchSettings;
 
 	async onload() {
 		await this.loadSettings();
 
-		// Add ribbon icon for quick access
-		const ribbonIconEl = this.addRibbonIcon('search', 'Gemini Web Search', (evt: MouseEvent) => {
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (activeView) {
-				const editor = activeView.editor;
-				const selection = editor.getSelection();
-				if (selection) {
-					this.performGeminiSearch(selection, editor);
-				} else {
-					new Notice('Please select some text to search with Gemini.');
-				}
-			}
-		});
-		ribbonIconEl.addClass('gemini-search-ribbon-class');
+		// Register chat view
+		this.registerView(
+			CHAT_VIEW_TYPE,
+			(leaf) => new GeminiChatView(leaf, this)
+		);
 
-		// Add command for web search with selection
+		// Add ribbon icon for chat
+		this.addRibbonIcon('message-circle', 'Open AI Web Search Chat', () => {
+			this.activateView();
+		});
+
+		// Keep existing text selection commands
 		this.addCommand({
 			id: 'gemini-web-search-selection',
-			name: 'Gemini: Search web with selection',
+			name: 'AI Web Search: Research with selected text',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				const selection = editor.getSelection();
 				if (selection) {
-					this.performGeminiSearch(selection, editor);
+					this.performWebSearchAndInsert(selection, editor);
 				} else {
-					new Notice('Please select some text to search with Gemini.');
+					new Notice('Please select some text to search.');
 				}
 			}
 		});
 
-		// Add command for custom web search
 		this.addCommand({
 			id: 'gemini-web-search-prompt',
-			name: 'Gemini: Search web with custom prompt',
+			name: 'AI Web Search: Custom query',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				this.promptForCustomSearch(editor);
 			}
 		});
 
-		// Add command for summarize selection
 		this.addCommand({
-			id: 'gemini-summarize-selection',
-			name: 'Gemini: Summarize selection',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				const selection = editor.getSelection();
-				if (selection) {
-					this.summarizeText(selection, editor);
-				} else {
-					new Notice('Please select some text to summarize with Gemini.');
-				}
+			id: 'gemini-open-chat',
+			name: 'AI Web Search: Open Chat Panel',
+			callback: () => {
+				this.activateView();
 			}
 		});
 
-		// Add settings tab
 		this.addSettingTab(new GeminiSettingTab(this.app, this));
 	}
 
-	onunload() {
-		// Cleanup any resources if needed
+	async activateView() {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(CHAT_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			// If view already exists, activate it
+			leaf = leaves[0];
+		} else {
+			// Create new view in right sidebar
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({ type: CHAT_VIEW_TYPE, active: true });
+		}
+
+		// Reveal and focus the view
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
+	async performWebSearch(query: string): Promise<string> {
+		switch (this.settings.provider) {
+			case 'gemini':
+				return this.searchWithGemini(query);
+			case 'perplexity':
+				return this.searchWithPerplexity(query);
+			case 'tavily':
+				return this.searchWithTavily(query);
+			default:
+				throw new Error('Invalid provider');
+		}
+	}
+
+	async searchWithGemini(query: string): Promise<string> {
+		if (!this.settings.geminiApiKey) {
+			throw new Error('Gemini API key not configured');
+		}
+
+		// Get current research mode from chat view
+		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+		const researchMode = chatView?.currentResearchMode;
+
+		// Customize prompt based on research mode
+		let enhancedPrompt = query;
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					enhancedPrompt = `Provide a quick, concise answer to: "${query}". Focus on the most important facts and key points.`;
+					break;
+				case 'comprehensive':
+					enhancedPrompt = `Provide a comprehensive, well-structured answer about: "${query}". Include key facts, context, and relevant details with proper sources.`;
+					break;
+				case 'deep':
+					enhancedPrompt = `Conduct deep research on: "${query}". Provide expert-level analysis, multiple perspectives, detailed explanations, and comprehensive coverage of the topic with extensive sources.`;
+					break;
+				case 'reasoning':
+					enhancedPrompt = `Analyze and reason through: "${query}". Break down the problem, provide logical reasoning, consider multiple angles, and deliver a thoughtful conclusion with supporting evidence.`;
+					break;
+				default:
+					enhancedPrompt = `Please provide a comprehensive answer about: "${query}"`;
+			}
+		}
+
+		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
+
+		const requestBody = {
+			contents: [{
+				parts: [{ text: enhancedPrompt }]
+			}],
+			tools: [{
+				google_search: {}
+			}],
+			generationConfig: {
+				temperature: researchMode?.id === 'reasoning' ? 0.3 : 0.7,
+				topP: 0.8,
+				topK: 40,
+				maxOutputTokens: researchMode?.id === 'quick' ? 1000 : 
+								researchMode?.id === 'deep' ? 4000 : 2000
+			}
+		};
+
+		const response = await requestUrl({
+			url: apiUrl,
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(requestBody)
+		});
+
+		const responseData = response.json;
+		const candidate = responseData.candidates?.[0];
+		
+		if (!candidate) {
+			throw new Error('No response from Gemini');
+		}
+
+		let result = candidate.content.parts[0].text;
+
+		// Add sources if available
+		if (candidate.groundingMetadata?.groundingChunks) {
+			result += "\n\n--- \n**Sources:**\n";
+			const sources = new Set<string>();
+
+			candidate.groundingMetadata.groundingChunks.forEach((chunk: any) => {
+				if (chunk.web?.uri) {
+					sources.add(`- [${chunk.web.title || chunk.web.uri}](${chunk.web.uri})`);
+				}
+			});
+
+			result += Array.from(sources).join('\n');
+		}
+
+		return result;
+	}
+
+	async searchWithPerplexity(query: string): Promise<string> {
+		if (!this.settings.perplexityApiKey) {
+			throw new Error('Perplexity API key not configured');
+		}
+
+		// Get current research mode from chat view
+		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+		const researchMode = chatView?.currentResearchMode;
+		const modelToUse = researchMode?.perplexityModel || this.settings.perplexityModel;
+
+		const response = await requestUrl({
+			url: 'https://api.perplexity.ai/chat/completions',
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				model: modelToUse,
+				messages: [{
+					role: "user",
+					content: query
+				}],
+				return_citations: true
+			})
+		});
+
+		const data = response.json;
+		const message = data.choices?.[0]?.message?.content;
+		
+		if (!message) {
+			throw new Error('No response from Perplexity');
+		}
+
+		return message;
+	}
+
+	async searchWithTavily(query: string): Promise<string> {
+		if (!this.settings.tavilyApiKey) {
+			throw new Error('Tavily API key not configured');
+		}
+
+		const response = await requestUrl({
+			url: 'https://api.tavily.com/search',
+			method: 'POST',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${this.settings.tavilyApiKey}`
+			},
+			body: JSON.stringify({
+				query: query,
+				search_depth: "advanced",
+				include_answer: true,
+				include_raw_content: false,
+				max_results: this.settings.maxResults
+			})
+		});
+
+		const data = response.json;
+		
+		let result = data.answer || "No answer found";
+		
+		if (data.results?.length > 0) {
+			result += "\n\n--- \n**Sources:**\n";
+			data.results.forEach((item: any) => {
+				result += `- [${item.title}](${item.url})\n`;
+			});
+		}
+
+		return result;
+	}
+
+	// Keep existing method for text selection
+	async performWebSearchAndInsert(query: string, editor: Editor) {
+		try {
+			const result = await this.performWebSearch(query);
+			
+			if (this.settings.insertMode === 'replace') {
+				editor.replaceSelection(result);
+			} else {
+				const cursor = editor.getCursor();
+				editor.replaceRange(`\n\n${result}\n`, cursor);
+			}
+			
+			new Notice('Search complete!');
+		} catch (error) {
+			new Notice(`Search failed: ${error.message}`);
+		}
+	}
+
+	async promptForCustomSearch(editor: Editor) {
+		const query = prompt('Enter your search query:');
+		if (query) {
+			this.performWebSearchAndInsert(query, editor);
+		}
 	}
 
 	async loadSettings() {
@@ -117,309 +622,9 @@ export default class GeminiWebSearchPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-
-	async promptForCustomSearch(editor: Editor) {
-		const query = await this.getCustomQuery();
-		if (query) {
-			this.performGeminiSearch(query, editor);
-		}
-	}
-
-	async getCustomQuery(): Promise<string | null> {
-		return new Promise((resolve) => {
-			const modal = new CustomSearchModal(this.app, (query: string) => {
-				resolve(query);
-			});
-			modal.open();
-		});
-	}
-
-	async performGeminiSearch(query: string, editor: Editor) {
-		if (!this.settings.geminiApiKey) {
-			new Notice('Gemini API key is not set. Please configure it in the plugin settings.');
-			return;
-		}
-
-		const initialCursor = editor.getCursor();
-		const placeholderText = `\n\n> [!info] 🤖 Gemini is searching...\n> Query: "${query}"\n> Status: Searching the web and analyzing results...\n\n`;
-		
-		// Insert placeholder immediately
-		editor.replaceRange(placeholderText, initialCursor);
-
-		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.defaultModel}:generateContent?key=${this.settings.geminiApiKey}`;
-
-		const requestBody = {
-			"contents": [{
-				"parts": [{
-					"text": `Please provide a comprehensive analysis and summary about: "${query}". 
-
-Instructions:
-1. Search for the most current and relevant information
-2. Provide key insights and important details
-3. Structure your response clearly with main points
-4. Include relevant context and background information
-5. If there are different perspectives or debates, mention them
-
-Please ensure your response is well-structured, informative, and based on reliable sources.`
-				}]
-			}],
-			"tools": [{
-				"googleSearch": {}
-			}],
-			"generationConfig": {
-				"temperature": 0.7,
-				"topK": 40,
-				"topP": 0.95,
-				"maxOutputTokens": 2048
-			}
-		};
-
-		try {
-			new Notice(`🔍 Searching for: "${query}"`);
-			
-			const response = await requestUrl({
-				url: apiUrl,
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(requestBody)
-			});
-
-			const responseData: GeminiResponse = response.json;
-			
-			if (!responseData.candidates || responseData.candidates.length === 0) {
-				throw new Error('No response from Gemini API');
-			}
-
-			const candidate = responseData.candidates[0];
-			let generatedText = candidate.content.parts[0].text;
-			let sourcesText = '';
-			let searchQueriesText = '';
-
-			// Process grounding metadata for sources and inline citations
-			if (candidate.groundingMetadata) {
-				const metadata = candidate.groundingMetadata;
-				
-				// Add search queries used
-				if (metadata.webSearchQueries && metadata.webSearchQueries.length > 0) {
-					searchQueriesText = `\n\n**🔍 Search Queries Used:**\n`;
-					metadata.webSearchQueries.forEach((query, index) => {
-						searchQueriesText += `${index + 1}. "${query}"\n`;
-					});
-				}
-
-				// Process inline citations
-				if (metadata.groundingSupports && metadata.groundingChunks) {
-					generatedText = this.addInlineCitations(generatedText, metadata.groundingSupports, metadata.groundingChunks);
-				}
-
-				// Add sources section
-				if (metadata.groundingChunks && metadata.groundingChunks.length > 0) {
-					sourcesText = "\n\n---\n\n## 📚 Sources\n\n";
-					const sources = new Set<string>();
-
-					metadata.groundingChunks.forEach((chunk, index) => {
-						if (chunk.web && chunk.web.uri) {
-							const title = chunk.web.title || chunk.web.uri;
-							sources.add(`${index + 1}. [${title}](${chunk.web.uri})`);
-						}
-					});
-
-					if (sources.size > 0) {
-						sourcesText += Array.from(sources).join('\n');
-					} else {
-						sourcesText = '\n\n---\n\n*No specific sources were cited for this response.*\n';
-					}
-				}
-
-				// Add search entry point widget note if available
-				if (metadata.searchEntryPoint) {
-					sourcesText += '\n\n> [!info] Search Entry Point\n> Google Search suggestions widget is available in the original API response.\n';
-				}
-			} else {
-				// No grounding metadata - model answered from its own knowledge
-				sourcesText = '\n\n---\n\n*Response generated from model\'s training data without web search.*\n';
-			}
-
-			// Format the final output
-			const timestamp = new Date().toLocaleString();
-			const finalOutput = `## 🤖 Gemini Web Search Results\n\n**Query:** ${query}  \n**Generated:** ${timestamp}\n\n---\n\n${generatedText}${searchQueriesText}${sourcesText}\n\n---\n\n*Generated by Gemini Web Search Plugin*\n\n`;
-
-			// Replace placeholder with results
-			const docContent = editor.getValue();
-			const newContent = docContent.replace(placeholderText.trim(), finalOutput.trim());
-			editor.setValue(newContent);
-
-			new Notice('✅ Gemini search completed successfully!');
-
-		} catch (error) {
-			console.error('Gemini API request failed:', error);
-			
-			let errorMessage = 'Unknown error occurred';
-			if (error.status) {
-				switch (error.status) {
-					case 401:
-						errorMessage = 'Authentication failed. Please check your API key in settings.';
-						break;
-					case 403:
-						errorMessage = 'Access forbidden. Your API key may not have permission for this operation.';
-						break;
-					case 429:
-						errorMessage = 'API rate limit exceeded. Please try again later.';
-						break;
-					case 500:
-						errorMessage = 'Gemini API server error. Please try again later.';
-						break;
-					default:
-						errorMessage = `API returned status ${error.status}. Check console for details.`;
-				}
-			} else if (error.message && error.message.includes('Failed to fetch')) {
-				errorMessage = 'Network error. Please check your internet connection.';
-			}
-
-			// Replace placeholder with error message
-			const docContent = editor.getValue();
-			const errorOutput = `> [!error] ❌ Gemini Search Failed\n> **Error:** ${errorMessage}\n> **Query:** "${query}"\n> **Time:** ${new Date().toLocaleString()}\n`;
-			const newContent = docContent.replace(placeholderText.trim(), errorOutput.trim());
-			editor.setValue(newContent);
-
-			new Notice(`❌ Gemini search failed: ${errorMessage}`, 8000);
-		}
-	}
-
-	addInlineCitations(text: string, groundingSupports: any[], groundingChunks: any[]): string {
-		// Sort supports by end_index in descending order to avoid shifting issues when inserting
-		const sortedSupports = groundingSupports.sort((a, b) => b.segment.endIndex - a.segment.endIndex);
-
-		let modifiedText = text;
-		
-		for (const support of sortedSupports) {
-			const endIndex = support.segment.endIndex;
-			if (support.groundingChunkIndices && support.groundingChunkIndices.length > 0) {
-				// Create citation string like [1,2,3]
-				const citationNumbers = support.groundingChunkIndices
-					.filter((i: number) => i < groundingChunks.length)
-					.map((i: number) => `${i + 1}`)
-					.join(',');
-				
-				if (citationNumbers) {
-					const citationString = `[${citationNumbers}]`;
-					modifiedText = modifiedText.substring(0, endIndex) + citationString + modifiedText.substring(endIndex);
-				}
-			}
-		}
-
-		return modifiedText;
-	}
-
-	async summarizeText(text: string, editor: Editor) {
-		if (!this.settings.geminiApiKey) {
-			new Notice('Gemini API key is not set. Please configure it in the plugin settings.');
-			return;
-		}
-
-		const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.defaultModel}:generateContent?key=${this.settings.geminiApiKey}`;
-
-		const requestBody = {
-			"contents": [{
-				"parts": [{
-					"text": `Please provide a concise summary of the following text. Focus on the key points, main ideas, and important details:\n\n${text}`
-				}]
-			}],
-			"generationConfig": {
-				"temperature": 0.3,
-				"topK": 20,
-				"topP": 0.8,
-				"maxOutputTokens": 1024
-			}
-		};
-
-		try {
-			new Notice('🤖 Summarizing with Gemini...');
-
-			const response = await requestUrl({
-				url: apiUrl,
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(requestBody)
-			});
-
-			const responseData: GeminiResponse = response.json;
-			const summary = responseData.candidates[0].content.parts[0].text;
-			
-			const timestamp = new Date().toLocaleString();
-			const formattedSummary = `\n\n---\n\n## 📝 Summary (Generated by Gemini)\n\n${summary}\n\n*Generated: ${timestamp}*\n\n---\n\n`;
-			
-			const cursor = editor.getCursor();
-			editor.replaceRange(formattedSummary, cursor);
-			
-			new Notice('✅ Summary generated successfully!');
-
-		} catch (error) {
-			console.error('Gemini summarization failed:', error);
-			new Notice('❌ Failed to generate summary. Check console for details.');
-		}
-	}
 }
 
-class CustomSearchModal extends Modal {
-	query: string = '';
-	onSubmit: (query: string) => void;
-
-	constructor(app: App, onSubmit: (query: string) => void) {
-		super(app);
-		this.onSubmit = onSubmit;
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.createEl('h2', { text: 'Gemini Web Search' });
-
-		const inputEl = contentEl.createEl('input', {
-			type: 'text',
-			placeholder: 'Enter your search query...'
-		});
-		inputEl.style.width = '100%';
-		inputEl.style.padding = '8px';
-		inputEl.style.marginBottom = '16px';
-		inputEl.style.fontSize = '16px';
-
-		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key === 'Enter') {
-				this.query = inputEl.value;
-				this.close();
-				this.onSubmit(this.query);
-			}
-		});
-
-		const buttonContainer = contentEl.createDiv();
-		buttonContainer.style.textAlign = 'right';
-
-		const searchButton = buttonContainer.createEl('button', { text: 'Search' });
-		searchButton.style.marginRight = '8px';
-		searchButton.addEventListener('click', () => {
-			this.query = inputEl.value;
-			this.close();
-			this.onSubmit(this.query);
-		});
-
-		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
-		cancelButton.addEventListener('click', () => {
-			this.close();
-		});
-
-		inputEl.focus();
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
-}
-
+// Enhanced Settings Tab
 class GeminiSettingTab extends PluginSettingTab {
 	plugin: GeminiWebSearchPlugin;
 
@@ -429,47 +634,43 @@ class GeminiSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const { containerEl } = this;
+		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Gemini Web Search Settings' });
+		containerEl.createEl('h2', {text: 'AI Web Search Settings'});
 
-		containerEl.createEl('p', { 
-			text: 'Configure your Google Gemini API integration for web search capabilities.' 
-		});
-
-		// API Key Setting
+		// Provider selection
 		new Setting(containerEl)
-			.setName('Gemini API Key')
-			.setDesc('Enter your Google Gemini API key. Get one from Google AI Studio (ai.google.dev).')
-			.addText(text => text
-				.setPlaceholder('Enter your API key')
-				.setValue(this.plugin.settings.geminiApiKey)
-				.onChange(async (value) => {
-					this.plugin.settings.geminiApiKey = value;
-					await this.plugin.saveSettings();
-				}));
-
-		// Model Selection
-		new Setting(containerEl)
-			.setName('Default Model')
-			.setDesc('Choose the Gemini model to use for searches.')
+			.setName('Search Provider')
+			.setDesc('Choose which AI service to use for web search')
 			.addDropdown(dropdown => dropdown
-				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro - Most powerful reasoning')
-				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash - Latest multimodal model')
-				.addOption('gemini-2.0-flash', 'Gemini 2.0 Flash - Fast and efficient')
-				.addOption('gemini-1.5-pro', 'Gemini 1.5 Pro - Complex reasoning')
-				.addOption('gemini-1.5-flash', 'Gemini 1.5 Flash - Balanced performance')
-				.setValue(this.plugin.settings.defaultModel)
-				.onChange(async (value) => {
-					this.plugin.settings.defaultModel = value;
+				.addOption('gemini', 'Google Gemini (with Google Search)')
+				.addOption('perplexity', 'Perplexity (Real-time Search)')
+				.addOption('tavily', 'Tavily (Advanced Web Search)')
+				.setValue(this.plugin.settings.provider)
+				.onChange(async (value: 'gemini' | 'perplexity' | 'tavily') => {
+					this.plugin.settings.provider = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show relevant API key field
+				}));
+
+		// Insert mode setting
+		new Setting(containerEl)
+			.setName('Insert Mode')
+			.setDesc('How to insert results when using text selection commands')
+			.addDropdown(dropdown => dropdown
+				.addOption('replace', 'Replace selected text')
+				.addOption('append', 'Insert at cursor position')
+				.setValue(this.plugin.settings.insertMode)
+				.onChange(async (value: 'replace' | 'append') => {
+					this.plugin.settings.insertMode = value;
 					await this.plugin.saveSettings();
 				}));
 
-		// Max Results Setting
+		// General settings
 		new Setting(containerEl)
-			.setName('Maximum Results')
-			.setDesc('Maximum number of search results to consider (1-10).')
+			.setName('Max Results')
+			.setDesc('Maximum number of search results to include')
 			.addSlider(slider => slider
 				.setLimits(1, 10, 1)
 				.setValue(this.plugin.settings.maxResults)
@@ -479,29 +680,117 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Instructions
-		containerEl.createEl('h3', { text: 'How to use:' });
-		const instructions = containerEl.createEl('div');
-		instructions.innerHTML = `
-			<ul>
-				<li><strong>Web Search:</strong> Select text and use "Gemini: Search web with selection" command</li>
-				<li><strong>Custom Search:</strong> Use "Gemini: Search web with custom prompt" to enter a query</li>
-				<li><strong>Summarize:</strong> Select text and use "Gemini: Summarize selection" command</li>
-				<li><strong>Ribbon Icon:</strong> Click the search icon in the left ribbon for quick access</li>
-			</ul>
-		`;
+		// Provider-specific settings
+		containerEl.createEl('h3', {text: 'API Keys'});
 
-		// API Information
-		containerEl.createEl('h3', { text: 'Getting Your API Key:' });
-		const apiInfo = containerEl.createEl('div');
-		apiInfo.innerHTML = `
-			<ol>
-				<li>Visit <a href="https://ai.google.dev" target="_blank">Google AI Studio</a></li>
-				<li>Sign in with your Google account</li>
-				<li>Click "Get API key" and create a new key</li>
-				<li>Copy the key and paste it above</li>
-			</ol>
-			<p><em>Note: The API has generous free limits, but check Google's pricing for heavy usage.</em></p>
-		`;
+		// Gemini settings
+		if (this.plugin.settings.provider === 'gemini') {
+			new Setting(containerEl)
+				.setName('Gemini API Key')
+				.setDesc('Get your API key from Google AI Studio')
+				.addText(text => text
+					.setPlaceholder('Enter your Gemini API key')
+					.setValue(this.plugin.settings.geminiApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.geminiApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Gemini Model')
+				.setDesc('Choose Gemini model to use')
+				.addDropdown(dropdown => dropdown
+					.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Fast)')
+					.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Advanced)')
+					.addOption('gemini-1.5-flash', 'Gemini 1.5 Flash (Legacy)')
+					.setValue(this.plugin.settings.geminiModel)
+					.onChange(async (value) => {
+						this.plugin.settings.geminiModel = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		// Perplexity settings
+		if (this.plugin.settings.provider === 'perplexity') {
+			new Setting(containerEl)
+				.setName('Perplexity API Key')
+				.setDesc('Get your API key from Perplexity.ai')
+				.addText(text => text
+					.setPlaceholder('Enter your Perplexity API key')
+					.setValue(this.plugin.settings.perplexityApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.perplexityApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Perplexity Model')
+				.setDesc('Choose Perplexity model to use')
+				.addDropdown(dropdown => dropdown
+					.addOption('sonar-pro', 'Sonar Pro (Advanced search)')
+					.addOption('sonar-reasoning', 'Sonar Reasoning (Complex analysis)')
+					.addOption('sonar-deep-research', 'Sonar Deep Research (Comprehensive)')
+					.setValue(this.plugin.settings.perplexityModel)
+					.onChange(async (value) => {
+						this.plugin.settings.perplexityModel = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		// Tavily settings
+		if (this.plugin.settings.provider === 'tavily') {
+			new Setting(containerEl)
+				.setName('Tavily API Key')
+				.setDesc('Get your API key from Tavily.com (1000 free credits/month)')
+				.addText(text => text
+					.setPlaceholder('Enter your Tavily API key')
+					.setValue(this.plugin.settings.tavilyApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.tavilyApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		// Always show all API keys for easy setup
+		containerEl.createEl('h4', {text: 'Additional API Keys (Optional)'});
+		
+		if (this.plugin.settings.provider !== 'gemini') {
+			new Setting(containerEl)
+				.setName('Gemini API Key')
+				.setDesc('Optional: Get from Google AI Studio')
+				.addText(text => text
+					.setPlaceholder('Enter Gemini API key')
+					.setValue(this.plugin.settings.geminiApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.geminiApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		if (this.plugin.settings.provider !== 'perplexity') {
+			new Setting(containerEl)
+				.setName('Perplexity API Key')
+				.setDesc('Optional: Get from Perplexity.ai')
+				.addText(text => text
+					.setPlaceholder('Enter Perplexity API key')
+					.setValue(this.plugin.settings.perplexityApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.perplexityApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		if (this.plugin.settings.provider !== 'tavily') {
+			new Setting(containerEl)
+				.setName('Tavily API Key')
+				.setDesc('Optional: Get from Tavily.com')
+				.addText(text => text
+					.setPlaceholder('Enter Tavily API key')
+					.setValue(this.plugin.settings.tavilyApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.tavilyApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 	}
 }

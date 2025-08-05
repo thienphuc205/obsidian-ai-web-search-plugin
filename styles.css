@@ -7,7 +7,7 @@ If your plugin does not need CSS, delete this file.
 
 */
 
-/* Gemini Search Plugin Styles */
+/* Enhanced AI Web Search Plugin Styles */
 
 .gemini-search-ribbon-class {
     color: var(--text-accent);
@@ -46,6 +46,364 @@ If your plugin does not need CSS, delete this file.
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid var(--background-modifier-border);
+}
+
+/* NEW: Chat View Styles */
+.gemini-chat-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background: var(--background-primary);
+}
+
+.gemini-chat-header {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.gemini-chat-header h3 {
+    margin: 0 0 5px 0;
+    color: var(--text-normal);
+    font-size: 1.1em;
+}
+
+.provider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.provider-label {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
+.provider-dropdown {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text-normal);
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.provider-dropdown:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Research Mode Styles - Bottom Layout */
+.research-mode-container-bottom {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.research-mode-label-small {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.research-mode-buttons-bottom {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.research-mode-btn-small {
+    padding: 6px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    background: var(--background-secondary);
+    font-size: 0.75em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    color: var(--text-normal);
+    font-weight: 500;
+}
+
+.research-mode-btn-small:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--text-accent);
+    transform: translateY(-1px);
+}
+
+.research-mode-btn-small.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Research Mode Specific Colors for Bottom Buttons */
+.research-mode-quick.active {
+    background: #22c55e !important;
+    border-color: #22c55e !important;
+}
+
+.research-mode-comprehensive.active {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+.research-mode-deep.active {
+    background: #8b5cf6 !important;
+    border-color: #8b5cf6 !important;
+}
+
+.research-mode-reasoning.active {
+    background: #f59e0b !important;
+    border-color: #f59e0b !important;
+}
+
+/* Clean Chat Layout */
+.gemini-chat-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+}
+
+.gemini-chat-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+}
+
+.gemini-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--background-primary);
+}
+
+.gemini-chat-input-container {
+    flex-shrink: 0;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.provider-dropdown:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.provider-info {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    background: var(--background-modifier-border);
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.gemini-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding: 5px;
+    scroll-behavior: smooth;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 90%;
+    word-wrap: break-word;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+.message.user {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+.message.assistant {
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-bottom-left-radius: 4px;
+}
+
+.message.system {
+    background: var(--background-modifier-border);
+    color: var(--text-muted);
+    text-align: center;
+    font-style: italic;
+    margin: 0 auto;
+    font-size: 0.9em;
+}
+
+.message-role {
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.message-content {
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.message-content.thinking {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.message-content.thinking::after {
+    content: "...";
+    animation: thinking 1.5s infinite;
+}
+
+@keyframes thinking {
+    0%, 60% { opacity: 1; }
+    30% { opacity: 0.5; }
+}
+
+.gemini-chat-input-container {
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 10px;
+    background: var(--background-primary);
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gemini-chat-input {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: inherit;
+    resize: vertical;
+    font-size: 0.9em;
+}
+
+.gemini-chat-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+}
+
+.send-button, .insert-button {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9em;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.send-button {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.send-button:hover {
+    background: var(--interactive-accent-hover);
+    transform: translateY(-1px);
+}
+
+.insert-button {
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.insert-button:hover {
+    background: var(--background-modifier-border-hover);
+    transform: translateY(-1px);
+}
+
+.send-button:active, .insert-button:active {
+    transform: translateY(0);
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .message {
+        max-width: 95%;
+    }
+    
+    .gemini-chat-container {
+        padding: 5px;
+    }
+}
+
+/* Dark theme adjustments */
+.theme-dark .message.user {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.theme-dark .message.assistant {
+    background: var(--background-secondary-alt);
+    border-color: var(--background-modifier-border-focus);
+}
+
+/* Scrollbar styling for chat messages */
+.gemini-chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.gemini-chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gemini-chat-messages::-webkit-scrollbar-thumb {
+    background: var(--background-modifier-border);
+    border-radius: 3px;
+}
+
+.gemini-chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--background-modifier-border-hover);
+}
+
+/* Animation for new messages */
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .gemini-search-sources h3 {
