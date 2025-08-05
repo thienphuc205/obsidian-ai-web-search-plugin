@@ -1,0 +1,11 @@
+{
+	"id": "network-test-plugin",
+	"name": "Network Test Plugin",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Test network capabilities for Obsidian plugins including HTTP requests, API access, and web search functionality.",
+	"author": "PhucThien",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}

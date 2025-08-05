@@ -6,3 +6,146 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+/* Gemini Search Plugin Styles */
+
+.gemini-search-ribbon-class {
+    color: var(--text-accent);
+}
+
+.gemini-search-ribbon-class:hover {
+    color: var(--text-accent-hover);
+}
+
+/* Custom styling for Gemini search results */
+.gemini-search-results {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 16px 0;
+    background-color: var(--background-secondary);
+}
+
+.gemini-search-header {
+    font-weight: 600;
+    color: var(--text-accent);
+    margin-bottom: 8px;
+}
+
+.gemini-search-query {
+    font-style: italic;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.gemini-search-content {
+    line-height: 1.6;
+}
+
+.gemini-search-sources {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.gemini-search-sources h3 {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.gemini-search-sources ul {
+    padding-left: 20px;
+}
+
+.gemini-search-sources li {
+    margin-bottom: 4px;
+}
+
+/* Modal styling */
+.gemini-custom-search-modal .modal-content {
+    padding: 20px;
+}
+
+.gemini-custom-search-modal input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.gemini-custom-search-modal input:focus {
+    outline: none;
+    border-color: var(--text-accent);
+}
+
+.gemini-custom-search-modal .button-container {
+    text-align: right;
+}
+
+.gemini-custom-search-modal button {
+    padding: 8px 16px;
+    margin-left: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--interactive-normal);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.gemini-custom-search-modal button:hover {
+    background-color: var(--interactive-hover);
+}
+
+.gemini-custom-search-modal button.mod-cta {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.gemini-custom-search-modal button.mod-cta:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+/* Settings tab styling */
+.gemini-settings-container h3 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    color: var(--text-accent);
+}
+
+.gemini-settings-container ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.gemini-settings-container li {
+    margin-bottom: 6px;
+}
+
+.gemini-settings-container ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.gemini-settings-container ol li {
+    margin-bottom: 6px;
+}
+
+.gemini-settings-container em {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.gemini-settings-container a {
+    color: var(--text-accent);
+    text-decoration: none;
+}
+
+.gemini-settings-container a:hover {
+    text-decoration: underline;
+}
