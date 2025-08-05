@@ -10,6 +10,7 @@ An advanced AI-powered web search plugin that brings real-time research capabili
 - **Google Gemini** - Advanced AI with web search capabilities
 - **Perplexity AI** - Real-time search with source citations  
 - **Tavily** - Specialized research-focused AI
+- **Exa** - Neural search with semantic understanding
 
 ### 🎯 **Smart Search Modes**
 - **Standard Search** - Quick AI-powered web research
@@ -48,6 +49,7 @@ An advanced AI-powered web search plugin that brings real-time research capabili
    - **Gemini**: [Google AI Studio](https://makersuite.google.com/app/apikey)
    - **Perplexity**: [Perplexity Settings](https://www.perplexity.ai/settings/api)
    - **Tavily**: [Tavily Console](https://app.tavily.com/)
+   - **Exa**: [Exa Dashboard](https://dashboard.exa.ai/)
 
 2. **Configure Plugin:**
    - Open Obsidian Settings → Community Plugins → AI Web Search
