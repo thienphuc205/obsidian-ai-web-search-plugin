@@ -1,162 +1,180 @@
-# Gemini Web Search Plugin for Obsidian
+# AI Web Search Plugin for Obsidian
 
-An intelligent web search plugin for Obsidian that leverages Google's Gemini AI to provide comprehensive, well-sourced research assistance directly in your notes.
+An advanced AI-powered web search plugin that brings real-time research capabilities directly into your Obsidian workspace.
 
-## 🚀 Features
+## ✨ Features
 
-- **🔍 AI-Powered Web Search**: Search the web using Google Gemini with grounding for accurate, up-to-date information
-- **📚 Source Citations**: Automatically includes clickable source links for verification and further reading
-- **✨ Smart Text Processing**: Summarize selected text or generate content based on your queries
-- **🎯 Multiple Search Options**: 
-  - Search with selected text
-  - Custom search prompts
-  - Text summarization
-- **⚡ Quick Access**: Ribbon icon and command palette integration
-- **🎨 Beautiful Formatting**: Well-structured output with timestamps and proper markdown formatting
+### 🤖 **Multiple AI Providers**
+- **Google Gemini** - Advanced AI with web search capabilities
+- **Perplexity AI** - Real-time search with source citations  
+- **Tavily** - Specialized research-focused AI
 
-## 🛠️ Installation
+### 🎯 **Smart Search Modes**
+- **Standard Search** - Quick AI-powered web research
+- **Research Mode** - Deep analysis with comprehensive sources
+- **YouTube Context Mode** - Smart video analysis and follow-up questions
 
-### Prerequisites
-- Obsidian v0.15.0 or higher
-- Google Gemini API key (free tier available)
+### 💬 **Advanced Chat Interface**
+- **Persistent Chat** - Continue conversations across searches
+- **New Chat** - Start fresh conversations anytime
+- **Send & Save** - Save important responses to your vault
+- **Smart Context** - Maintains conversation history
 
-### Setup Steps
+### 🔍 **Enhanced Features**
+- **Source Citations** - Clickable links to original sources
+- **Related Questions** - AI-suggested follow-up queries
+- **Multiple Languages** - Full Vietnamese and English support
+- **Customizable Settings** - Fine-tune AI parameters
 
-1. **Get Your Gemini API Key**:
-   - Visit [Google AI Studio](https://ai.google.dev)
-   - Sign in with your Google account
-   - Click "Get API key" and create a new key
-   - Copy the generated API key
+## 🚀 Getting Started
 
-2. **Install the Plugin**:
-   - Download the latest release files (`main.js`, `manifest.json`, `styles.css`)
-   - Place them in your vault's `.obsidian/plugins/gemini-web-search/` folder
-   - Enable the plugin in Obsidian's Community Plugins settings
+### Installation
 
-3. **Configure the Plugin**:
-   - Go to Settings → Gemini Web Search
-   - Paste your API key
-   - Choose your preferred Gemini model
-   - Adjust other settings as needed
+1. Install from Obsidian Community Plugins (coming soon)
+2. Or manually: Download latest release and extract to `.obsidian/plugins/`
 
-## 🎯 Usage
+### Setup
 
-### Web Search with Selection
-1. Select any text in your note
-2. Use Command Palette → "Gemini: Search web with selection"
-3. The plugin will search the web and insert comprehensive results with sources
+1. **Get API Keys:**
+   - **Gemini**: [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - **Perplexity**: [Perplexity Settings](https://www.perplexity.ai/settings/api)
+   - **Tavily**: [Tavily Console](https://app.tavily.com/)
 
-### Custom Web Search
-1. Use Command Palette → "Gemini: Search web with custom prompt"
-2. Enter your search query in the modal
-3. Get detailed research results inserted at your cursor
+2. **Configure Plugin:**
+   - Open Obsidian Settings → Community Plugins → AI Web Search
+   - Add your API keys
+   - Choose preferred AI provider
+   - Adjust settings as needed
 
-### Text Summarization
-1. Select text you want to summarize
-2. Use Command Palette → "Gemini: Summarize selection"
-3. Get a concise summary appended to your selection
+3. **Start Searching:**
+   - Click the 🔍 icon in ribbon
+   - Or use Command Palette: "AI Web Search"
 
-### Quick Access
-- Click the 🔍 search icon in the left ribbon for quick searches
-- All commands are available in the Command Palette (Ctrl/Cmd + P)
+## 🎥 YouTube Integration
+
+### Smart YouTube Context Mode
+- **Video Analysis**: Paste YouTube URL for AI-powered video analysis
+- **Follow-up Questions**: Ask questions about the video content
+- **Context Persistence**: Maintains video context across questions
+
+### Usage:
+```
+🎥 Smart YouTube Context Mode
+1. Paste YouTube URL: https://youtube.com/watch?v=VIDEO_ID
+2. Ask questions about the video
+3. Get AI-powered insights with source citations
+```
 
 ## ⚙️ Configuration
 
-### Available Settings
+### AI Provider Settings
+- **Temperature**: Control response creativity (0.0-1.0)
+- **Max Tokens**: Limit response length
+- **Model Selection**: Choose specific AI models
+- **Research Mode**: Enable deep research capabilities
 
-- **Gemini API Key**: Your Google Gemini API key for authentication
-- **Default Model**: Choose from available Gemini models:
-  - Gemini 2.0 Flash (Experimental) - Latest and fastest
-  - Gemini 1.5 Pro - Best for complex reasoning
-  - Gemini 1.5 Flash - Balanced speed and quality
-- **Maximum Results**: Control how many search results to consider (1-10)
+### Interface Options
+- **Language**: Vietnamese/English interface
+- **Auto-save**: Automatically save responses
+- **Chat Persistence**: Maintain conversation history
 
-## 📝 Output Format
+## 🛠️ Advanced Usage
 
-The plugin generates well-structured markdown output:
+### Research Mode Parameters
+- **Search Domain Filter**: Include/exclude specific domains
+- **Recency Filter**: Focus on recent content (hour/day/week/month)
+- **Related Questions**: Get AI-suggested follow-ups
+- **Search Context Size**: Control search depth
 
-```markdown
-## 🤖 Gemini Web Search Results
+### Citation Features
+- **Clickable Sources**: Direct links to original content
+- **Source Titles**: Readable titles extracted from URLs
+- **Citation Numbers**: [1], [2], [3] linked to sources section
+- **External Link Indicators**: Visual cues for external content
 
-**Query:** Your search query  
-**Generated:** 2025-01-01, 10:30:00 AM
+## 📖 Examples
 
----
+### Basic Search
+```
+Query: "Latest developments in AI technology"
+→ Get comprehensive AI-powered research with sources
+```
 
-[Comprehensive analysis and insights from Gemini]
+### YouTube Analysis
+```
+URL: https://youtube.com/watch?v=dQw4w9WgXcQ
+Query: "What are the main themes in this video?"
+→ AI analyzes video content and provides insights
+```
 
----
-
-## 📚 Sources
-
-- [Source Title](https://example.com)
-- [Another Source](https://example2.com)
-
----
-
-*Generated by Gemini Web Search Plugin*
+### Research Mode
+```
+Query: "Climate change impacts on agriculture"
+→ Deep research with multiple sources and citations
 ```
 
 ## 🔧 Development
 
-### Building from Source
+### Requirements
+- Node.js 16+
+- TypeScript
+- Obsidian API
 
+### Build
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/gemini-web-search-plugin.git
-
-# Install dependencies
 npm install
-
-# Build for development (with watching)
-npm run dev
-
-# Build for production
 npm run build
 ```
 
-### Project Structure
+### Manual Installation
+1. Download latest release
+2. Extract to `.obsidian/plugins/ai-web-search/`
+3. Enable in Obsidian settings
 
-```
-gemini-web-search-plugin/
-├── main.ts              # Main plugin code
-├── manifest.json        # Plugin metadata
-├── styles.css          # Custom CSS styling
-├── package.json        # Node.js dependencies
-├── tsconfig.json       # TypeScript configuration
-├── esbuild.config.mjs  # Build configuration
-└── README.md           # This file
-```
+## 📝 Changelog
+
+### v2.0.0 (Current)
+- ✅ Smart YouTube Context Mode
+- ✅ Enhanced Perplexity integration
+- ✅ Clickable citation system
+- ✅ Improved source extraction
+- ✅ Multiple language support
+
+### v1.8.0
+- 🔧 Fixed Perplexity sources display
+- 🎨 Enhanced Obsidian markdown compatibility
+- 🔗 Improved citation linking
+
+### v1.5.0
+- 🚀 Updated Perplexity API models
+- 🔧 Fixed API compatibility issues
+- 📊 Enhanced error handling
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Contributions welcome! Please:
+1. Fork the repository
+2. Create feature branch
+3. Submit pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details.
 
-## 🙏 Acknowledgments
+## 🔗 Links
 
-- Built on the excellent [Obsidian API](https://github.com/obsidianmd/obsidian-api)
-- Powered by [Google Gemini AI](https://ai.google.dev)
-- Inspired by the Obsidian community's innovative plugins
+- **GitHub**: [Repository URL]
+- **Issues**: [Issues URL]
+- **Documentation**: [Docs URL]
 
-## 🆘 Support & Issues
+## 💝 Support
 
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/your-username/gemini-web-search-plugin/issues) page
-2. Create a new issue with detailed information about your problem
-3. Include your Obsidian version and plugin version
-
-## 🔒 Privacy & Security
-
-- Your API key is stored locally in your vault and never transmitted except to Google's Gemini API
-- Search queries are sent to Google's servers for processing
-- No data is stored or logged by this plugin
-- Review Google's privacy policy for their data handling practices
+If you find this plugin helpful:
+- ⭐ Star the repository
+- 🐛 Report issues
+- 💡 Suggest features
+- ☕ Buy me a coffee
 
 ---
 
-**Happy researching! 🎉**
+**Made with ❤️ for the Obsidian community**
