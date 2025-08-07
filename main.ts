@@ -1627,6 +1627,13 @@ For additional context and verification:
 			performanceMonitor.startTimer(operationId);
 			logger.debug('Starting Tavily search', { query });
 
+			// Get current research mode max results
+			const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+			const currentMode = chatView?.currentResearchMode?.id || 'comprehensive';
+			const modeKey = currentMode as keyof typeof this.settings.researchModeConfigs;
+			const maxResults = (this.settings.researchModeConfigs[modeKey] as any)?.tavilyMaxResults || 
+							  this.settings.tavilyMaxResults || 5;
+
 			// Prepare Tavily API request with actual parameters from API docs
 			const requestBody: Record<string, any> = {
 				api_key: this.settings.tavilyApiKey,
@@ -1635,7 +1642,7 @@ For additional context and verification:
 				include_answer: this.settings.tavilyIncludeAnswer,
 				include_images: this.settings.tavilyIncludeImages,
 				include_raw_content: this.settings.tavilyIncludeRawContent,
-				max_results: this.settings.tavilyMaxResults,
+				max_results: maxResults,
 				include_domains: this.settings.tavilyIncludeDomains ? this.settings.tavilyIncludeDomains.split(',').map(d => d.trim()) : undefined,
 				exclude_domains: this.settings.tavilyExcludeDomains ? this.settings.tavilyExcludeDomains.split(',').map(d => d.trim()) : undefined,
 				topic: this.settings.tavilyTopic,
@@ -1663,8 +1670,9 @@ For additional context and verification:
 			const duration = performanceMonitor.endTimer(operationId);
 			performanceMonitor.logMetrics('Tavily Search', duration, {
 				queryLength: query.length,
-				maxResults: this.settings.tavilyMaxResults,
-				searchDepth: this.settings.tavilySearchDepth
+				maxResults: maxResults,
+				searchDepth: this.settings.tavilySearchDepth,
+				researchMode: currentMode
 			});
 
 			if (response.status !== 200) {
@@ -1750,11 +1758,20 @@ For additional context and verification:
 			performanceMonitor.startTimer(operationId);
 			logger.debug('Starting Exa search', { query });
 
+			// Get current research mode max results
+			const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+			const currentMode = chatView?.currentResearchMode?.id || 'comprehensive';
+			const modeKey = currentMode as keyof typeof this.settings.researchModeConfigs;
+			const maxResults = (this.settings.researchModeConfigs[modeKey] as any)?.tavilyMaxResults || 
+							  this.settings.tavilyMaxResults || 5;
+			// For Exa, use the same max results but clamp to Exa's limits
+			const exaNumResults = Math.min(maxResults, this.settings.exaNumResults || 10);
+
 			// Prepare Exa API request with actual parameters from API docs
 			const requestBody: Record<string, any> = {
 				query: query,
 				type: this.settings.exaSearchType,
-				numResults: this.settings.exaNumResults,
+				numResults: exaNumResults,
 				includeDomains: this.settings.exaIncludeDomains ? this.settings.exaIncludeDomains.split(',').map(d => d.trim()) : undefined,
 				excludeDomains: this.settings.exaExcludeDomains ? this.settings.exaExcludeDomains.split(',').map(d => d.trim()) : undefined,
 				startCrawlDate: this.settings.exaStartCrawlDate || undefined,
@@ -1805,8 +1822,9 @@ For additional context and verification:
 			const duration = performanceMonitor.endTimer(operationId);
 			performanceMonitor.logMetrics('Exa Search', duration, {
 				queryLength: query.length,
-				numResults: this.settings.exaParams.numResults,
-				searchType: this.settings.exaParams.type
+				numResults: exaNumResults,
+				searchType: this.settings.exaSearchType,
+				researchMode: currentMode
 			});
 
 			if (response.status !== 200) {
@@ -2728,6 +2746,103 @@ export class GeminiChatView extends ItemView {
 		
 		const researchButtonsContainer = researchModeContainer.createEl('div', { cls: 'research-mode-buttons-bottom' });
 		
+		// Max Results Control - added to chat interface
+		const maxResultsContainer = this.inputContainer.createEl('div', { cls: 'max-results-container-bottom' });
+		const maxResultsHeader = maxResultsContainer.createEl('div', { cls: 'max-results-header' });
+		maxResultsHeader.createEl('span', { text: 'Max Results:', cls: 'max-results-label-small' });
+		maxResultsHeader.createEl('span', { 
+			text: '?', 
+			cls: 'max-results-info-icon',
+			attr: { title: 'Controls the maximum number of search results per research mode. Changes are saved per mode and applied immediately to searches.' }
+		});
+		
+		const maxResultsSliderContainer = maxResultsContainer.createEl('div', { cls: 'max-results-slider-container' });
+		
+		const getCurrentMaxResults = () => {
+			const mode = this.currentResearchMode?.id || 'comprehensive';
+			const modeKey = mode as keyof typeof this.plugin.settings.researchModeConfigs;
+			return (this.plugin.settings.researchModeConfigs[modeKey] as any)?.tavilyMaxResults || 
+				   (this.plugin.settings as any).tavilyMaxResults || 5;
+		};
+		
+		const currentValue = getCurrentMaxResults();
+		const maxResultsValueDisplay = maxResultsSliderContainer.createEl('span', { 
+			text: currentValue.toString(),
+			cls: 'max-results-value-display'
+		});
+		
+		const maxResultsSlider = maxResultsSliderContainer.createEl('input', {
+			type: 'range',
+			cls: 'max-results-slider-small',
+			attr: {
+				min: '1',
+				max: '20',
+				step: '1',
+				value: currentValue.toString(),
+				title: 'Maximum number of search results (1-20)'
+			}
+		});
+		
+		// Update max results when slider changes
+		maxResultsSlider.addEventListener('input', async (e) => {
+			try {
+				const value = parseInt((e.target as HTMLInputElement).value);
+				
+				// Validate value range
+				if (isNaN(value) || value < 1 || value > 20) {
+					console.warn(`Invalid max results value: ${value}. Resetting to 5.`);
+					const defaultValue = 5;
+					maxResultsSlider.value = defaultValue.toString();
+					maxResultsValueDisplay.textContent = defaultValue.toString();
+					return;
+				}
+				
+				const mode = this.currentResearchMode?.id || 'comprehensive';
+				const modeKey = mode as keyof typeof this.plugin.settings.researchModeConfigs;
+				
+				// Update the specific research mode config
+				if (this.plugin.settings.researchModeConfigs[modeKey]) {
+					(this.plugin.settings.researchModeConfigs[modeKey] as any).tavilyMaxResults = value;
+				}
+				
+				// Also update global setting for backward compatibility
+				(this.plugin.settings as any).tavilyMaxResults = value;
+				
+				// Update display
+				maxResultsValueDisplay.textContent = value.toString();
+				
+				await this.plugin.saveSettings();
+				
+				// Debug log for testing
+				console.log(`Max results updated for ${mode} mode: ${value}`);
+				
+				// Show a subtle notification for confirmation
+				if (value !== currentValue) {
+					new Notice(`📊 Max results set to ${value} for ${mode} mode`, 2000);
+				}
+			} catch (error) {
+				console.error('Error updating max results:', error);
+				new Notice('⚠️ Error updating max results setting');
+			}
+		});
+		
+		// Add debug method for testing (can be called from console)
+		const addDebugMethod = () => {
+			(window as any).debugMaxResults = () => {
+				const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'];
+				console.log('=== Max Results Debug Info ===');
+				modes.forEach(mode => {
+					const modeKey = mode as keyof typeof this.plugin.settings.researchModeConfigs;
+					const maxResults = (this.plugin.settings.researchModeConfigs[modeKey] as any)?.tavilyMaxResults || 
+									  (this.plugin.settings as any).tavilyMaxResults || 5;
+					console.log(`${mode}: ${maxResults} results`);
+				});
+				console.log(`Current mode: ${this.currentResearchMode?.id || 'comprehensive'}`);
+				console.log(`Global setting: ${(this.plugin.settings as any).tavilyMaxResults || 5}`);
+			};
+		};
+		addDebugMethod();
+		
 		const researchModes = [
 			{
 				id: 'quick',
@@ -2983,6 +3098,27 @@ export class GeminiChatView extends ItemView {
 		const modelDropdown = this.containerEl.querySelector('.model-dropdown') as HTMLSelectElement;
 		if (modelDropdown) {
 			this.updateModelDropdown(modelDropdown, this.plugin.settings.provider);
+		}
+		
+		// Update max results slider when research mode changes
+		const maxResultsSlider = this.containerEl.querySelector('.max-results-slider-small') as HTMLInputElement;
+		const maxResultsValueDisplay = this.containerEl.querySelector('.max-results-value-display') as HTMLElement;
+		if (maxResultsSlider && maxResultsValueDisplay) {
+			try {
+				const modeKey = mode.id as keyof typeof this.plugin.settings.researchModeConfigs;
+				const currentValue = (this.plugin.settings.researchModeConfigs[modeKey] as any)?.tavilyMaxResults || 
+									(this.plugin.settings as any).tavilyMaxResults || 5;
+				
+				// Validate and clamp value
+				const validValue = Math.max(1, Math.min(20, parseInt(currentValue.toString()) || 5));
+				
+				maxResultsSlider.value = validValue.toString();
+				maxResultsValueDisplay.textContent = validValue.toString();
+				
+				console.log(`Max results slider updated for ${mode.id} mode: ${validValue}`);
+			} catch (error) {
+				console.error('Error updating max results slider:', error);
+			}
 		}
 		
 		// Handle YouTube mode special requirements

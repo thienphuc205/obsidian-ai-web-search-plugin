@@ -1,0 +1,2783 @@
+import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, requestUrl, ItemView, WorkspaceLeaf, Modal } from 'obsidian';
+
+// Enhanced Error Handling and Logging System
+class PluginLogger {
+	private static instance: PluginLogger;
+	private debugMode: boolean = true;
+	
+	static getInstance(): PluginLogger {
+		if (!PluginLogger.instance) {
+			PluginLogger.instance = new PluginLogger();
+		}
+		return PluginLogger.instance;
+	}
+	
+	debug(message: string, data?: any) {
+		if (this.debugMode) {
+			console.log(`[AI Web Search Debug] ${message}`, data || '');
+		}
+	}
+	
+	info(message: string, data?: any) {
+		console.log(`[AI Web Search Info] ${message}`, data || '');
+	}
+	
+	warn(message: string, data?: any) {
+		console.warn(`[AI Web Search Warning] ${message}`, data || '');
+	}
+	
+	error(message: string, error?: any) {
+		console.error(`[AI Web Search Error] ${message}`, error || '');
+	}
+}
+
+// Performance Monitoring System
+class PerformanceMonitor {
+	private static instance: PerformanceMonitor;
+	private metrics: Map<string, number> = new Map();
+	
+	static getInstance(): PerformanceMonitor {
+		if (!PerformanceMonitor.instance) {
+			PerformanceMonitor.instance = new PerformanceMonitor();
+		}
+		return PerformanceMonitor.instance;
+	}
+	
+	startTimer(operationId: string): void {
+		this.metrics.set(operationId, Date.now());
+	}
+	
+	endTimer(operationId: string): number {
+		const startTime = this.metrics.get(operationId);
+		if (!startTime) return 0;
+		
+		const duration = Date.now() - startTime;
+		this.metrics.delete(operationId);
+		
+		const logger = PluginLogger.getInstance();
+		logger.debug(`Performance: ${operationId} took ${duration}ms`);
+		
+		return duration;
+	}
+	
+	logMetrics(operation: string, duration: number, metadata?: any) {
+		const logger = PluginLogger.getInstance();
+		logger.info(`Performance Metric: ${operation}`, {
+			duration: `${duration}ms`,
+			timestamp: new Date().toISOString(),
+			...metadata
+		});
+	}
+}
+
+// Input Validation System
+class InputValidator {
+	static validateApiKey(key: string): boolean {
+		return typeof key === 'string' && key.length > 0 && key.trim().length > 0;
+	}
+	
+	static validateUrl(url: string): boolean {
+		try {
+			new URL(url);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+	
+	static validateYouTubeUrl(url: string): boolean {
+		if (!this.validateUrl(url)) return false;
+		const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)/;
+		return youtubeRegex.test(url);
+	}
+	
+	static validateQuery(query: string): boolean {
+		return typeof query === 'string' && query.trim().length > 0 && query.length <= 10000;
+	}
+	
+	static validateResearchMode(mode: string): boolean {
+		const validModes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'];
+		return validModes.includes(mode);
+	}
+	
+	static validateProvider(provider: string): boolean {
+		const validProviders = ['gemini', 'perplexity', 'tavily', 'exa'];
+		return validProviders.includes(provider);
+	}
+	
+	static sanitizeInput(input: string): string {
+		return input.trim().replace(/[<>]/g, '');
+	}
+}
+
+// Enhanced settings with multiple providers and research-mode-specific parameters
+interface GeminiWebSearchSettings {
+	provider: 'gemini' | 'perplexity' | 'tavily' | 'exa';
+	geminiApiKey: string;
+	perplexityApiKey: string;
+	tavilyApiKey: string;
+	exaApiKey: string;
+	insertMode: 'replace' | 'append';
+	maxResults: number;
+	includeImages: boolean;
+	
+	// Chat saving settings
+	chatFolderName: string;
+	chatNoteTemplate: 'timestamp-query' | 'query-timestamp' | 'query-only' | 'counter';
+	chatSaveEnabled: boolean;
+	
+	// Enhanced Model Configuration for Research Modes
+	researchModeConfigs: {
+		quick: {
+			// Available Models
+			geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+			perplexityModel: 'sonar' | 'sonar-pro' | 'sonar-reasoning' | 'sonar-reasoning-pro' | 'sonar-deep-research';
+			
+			// Gemini Parameters (from AI Studio docs)
+			geminiParams: {
+				temperature: number; // 0.0-2.0
+				topP: number; // 0.0-1.0 
+				topK: number; // 0-100
+				maxOutputTokens: number; // up to 8192
+				responseMimeType: 'text/plain' | 'application/json';
+				candidateCount: number; // 1-8, default 1
+				stopSequences: string[];
+				seed: number | null; // For reproducible outputs
+			};
+			
+			// Gemini Safety Settings
+			geminiSafety: {
+				harassment: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				hateSpeech: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				sexuallyExplicit: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				dangerousContent: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+			};
+			
+			// Perplexity Parameters (from API docs)
+			perplexityParams: {
+				temperature: number; // 0.0-2.0
+				max_tokens: number; // model-dependent
+				top_p: number; // 0.0-1.0
+				top_k: number; // 0-2048
+				frequency_penalty: number; // -2.0 to 2.0
+				presence_penalty: number; // -2.0 to 2.0
+				stream: boolean;
+				
+				// Search-specific parameters
+				search_domain_filter: string[]; // Allow/deny domains
+				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
+				search_mode: 'web' | 'academic';
+				return_related_questions: boolean;
+				return_citations: boolean;
+				return_images: boolean;
+				search_context_size: number; // Number of search results to use
+			};
+		};
+		comprehensive: {
+			geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+			perplexityModel: 'sonar' | 'sonar-pro' | 'sonar-reasoning' | 'sonar-reasoning-pro' | 'sonar-deep-research';
+			geminiParams: {
+				temperature: number;
+				topP: number;
+				topK: number;
+				maxOutputTokens: number;
+				responseMimeType: 'text/plain' | 'application/json';
+				candidateCount: number;
+				stopSequences: string[];
+				seed: number | null;
+			};
+			geminiSafety: {
+				harassment: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				hateSpeech: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				sexuallyExplicit: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				dangerousContent: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+			};
+			perplexityParams: {
+				temperature: number;
+				max_tokens: number;
+				top_p: number;
+				top_k: number;
+				frequency_penalty: number;
+				presence_penalty: number;
+				stream: boolean;
+				search_domain_filter: string[];
+				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
+				search_mode: 'web' | 'academic';
+				return_related_questions: boolean;
+				return_citations: boolean;
+				return_images: boolean;
+				search_context_size: number;
+			};
+		};
+		deep: {
+			geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+			perplexityModel: 'sonar' | 'sonar-pro' | 'sonar-reasoning' | 'sonar-reasoning-pro' | 'sonar-deep-research';
+			geminiParams: {
+				temperature: number;
+				topP: number;
+				topK: number;
+				maxOutputTokens: number;
+				responseMimeType: 'text/plain' | 'application/json';
+				candidateCount: number;
+				stopSequences: string[];
+				seed: number | null;
+			};
+			geminiSafety: {
+				harassment: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				hateSpeech: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				sexuallyExplicit: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				dangerousContent: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+			};
+			perplexityParams: {
+				temperature: number;
+				max_tokens: number;
+				top_p: number;
+				top_k: number;
+				frequency_penalty: number;
+				presence_penalty: number;
+				stream: boolean;
+				search_domain_filter: string[];
+				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
+				search_mode: 'web' | 'academic';
+				return_related_questions: boolean;
+				return_citations: boolean;
+				return_images: boolean;
+				search_context_size: number;
+			};
+		};
+		reasoning: {
+			geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+			perplexityModel: 'sonar' | 'sonar-pro' | 'sonar-reasoning' | 'sonar-reasoning-pro' | 'sonar-deep-research';
+			geminiParams: {
+				temperature: number;
+				topP: number;
+				topK: number;
+				maxOutputTokens: number;
+				responseMimeType: 'text/plain' | 'application/json';
+				candidateCount: number;
+				stopSequences: string[];
+				seed: number | null;
+			};
+			geminiSafety: {
+				harassment: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				hateSpeech: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				sexuallyExplicit: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				dangerousContent: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+			};
+			perplexityParams: {
+				temperature: number;
+				max_tokens: number;
+				top_p: number;
+				top_k: number;
+				frequency_penalty: number;
+				presence_penalty: number;
+				stream: boolean;
+				search_domain_filter: string[];
+				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
+				search_mode: 'web' | 'academic';
+				return_related_questions: boolean;
+				return_citations: boolean;
+				return_images: boolean;
+				search_context_size: number;
+			};
+		};
+		youtube: {
+			geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+			geminiParams: {
+				temperature: number;
+				topP: number;
+				topK: number;
+				maxOutputTokens: number;
+				responseMimeType: 'text/plain' | 'application/json';
+				candidateCount: number;
+				stopSequences: string[];
+				seed: number | null;
+			};
+			geminiSafety: {
+				harassment: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				hateSpeech: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				sexuallyExplicit: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+				dangerousContent: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+			};
+		};
+	};
+	
+	// Exa (Metaphor) Parameters
+	exaSearchType: 'auto' | 'keyword' | 'neural';
+	exaCategory: string;
+	exaIncludeDomains: string[];
+	exaExcludeDomains: string[];
+	exaStartDate: string;
+	exaEndDate: string;
+	exaIncludeText: string[];
+	exaExcludeText: string[];
+	exaGetText: boolean;
+	exaGetHighlights: boolean;
+	exaGetSummary: boolean;
+	
+	// Custom prompts with professional frameworks optimized for Obsidian
+	enableCustomPrompts: boolean;
+	quickPrompt: string;
+	comprehensivePrompt: string;
+	deepPrompt: string;
+	reasoningPrompt: string;
+	youtubePrompt: string;
+	
+	// Provider search/chat mode settings
+	providerSearchModes: {
+		[key: string]: boolean; // true = search mode, false = chat mode
+	};
+	
+	// Context Memory System
+	contextMemoryEnabled: boolean;
+	maxContextMessages: number;
+	contextMemoryStrategy: 'recent' | 'summary' | 'token-limit';
+	
+	// Advanced Configuration Presets
+	configurationPresets: {
+		[presetName: string]: {
+			description: string;
+			modeName: 'quick' | 'comprehensive' | 'deep' | 'reasoning' | 'youtube';
+			provider: 'gemini' | 'perplexity';
+			parameters: any;
+		};
+	};
+	
+	// UI Preferences  
+	uiPreferences: {
+		showAdvancedSettings: boolean;
+		showParameterTooltips: boolean;
+		autoSaveSettings: boolean;
+		showPerformanceMetrics: boolean;
+		compactMode: boolean;
+	};
+	
+	// Backward compatibility
+	geminiModel: string;
+	perplexityModel: string;
+	researchModeModels: {
+		quick: string;
+		comprehensive: string;
+		deep: string;
+		reasoning: string;
+		youtube: string;
+	};
+}
+
+const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
+	provider: 'gemini',
+	geminiApiKey: '',
+	perplexityApiKey: '',
+	tavilyApiKey: '',
+	exaApiKey: '',
+	insertMode: 'replace',
+	maxResults: 5,
+	includeImages: false,
+	
+	// Chat saving settings
+	chatFolderName: 'AI Web Search Chats',
+	chatNoteTemplate: 'timestamp-query',
+	chatSaveEnabled: true,
+	
+	// Enhanced Research Mode Configurations
+	researchModeConfigs: {
+		quick: {
+			geminiModel: 'gemini-2.5-flash-lite',
+			perplexityModel: 'sonar',
+			geminiParams: {
+				temperature: 0.5,
+				topP: 0.7,
+				topK: 20,
+				maxOutputTokens: 1000,
+				responseMimeType: 'text/plain',
+				candidateCount: 1,
+				stopSequences: [],
+				seed: null
+			},
+			geminiSafety: {
+				harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+				hateSpeech: 'BLOCK_MEDIUM_AND_ABOVE',
+				sexuallyExplicit: 'BLOCK_MEDIUM_AND_ABOVE',
+				dangerousContent: 'BLOCK_MEDIUM_AND_ABOVE'
+			},
+			perplexityParams: {
+				temperature: 0.4,
+				max_tokens: 800,
+				top_p: 0.7,
+				top_k: 20,
+				frequency_penalty: 0.0,
+				presence_penalty: 0.0,
+				stream: false,
+				search_domain_filter: [],
+				search_recency_filter: 'day',
+				search_mode: 'web',
+				return_related_questions: false,
+				return_citations: true,
+				return_images: false,
+				search_context_size: 3
+			}
+		},
+		comprehensive: {
+			geminiModel: 'gemini-2.5-flash',
+			perplexityModel: 'sonar-pro',
+			geminiParams: {
+				temperature: 0.7,
+				topP: 0.8,
+				topK: 40,
+				maxOutputTokens: 2000,
+				responseMimeType: 'text/plain',
+				candidateCount: 1,
+				stopSequences: [],
+				seed: null
+			},
+			geminiSafety: {
+				harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+				hateSpeech: 'BLOCK_MEDIUM_AND_ABOVE',
+				sexuallyExplicit: 'BLOCK_MEDIUM_AND_ABOVE',
+				dangerousContent: 'BLOCK_MEDIUM_AND_ABOVE'
+			},
+			perplexityParams: {
+				temperature: 0.6,
+				max_tokens: 2000,
+				top_p: 0.8,
+				top_k: 40,
+				frequency_penalty: 0.1,
+				presence_penalty: 0.1,
+				stream: false,
+				search_domain_filter: [],
+				search_recency_filter: 'week',
+				search_mode: 'web',
+				return_related_questions: true,
+				return_citations: true,
+				return_images: true,
+				search_context_size: 8
+			}
+		},
+		deep: {
+			geminiModel: 'gemini-2.5-pro',
+			perplexityModel: 'sonar-deep-research',
+			geminiParams: {
+				temperature: 0.8,
+				topP: 0.9,
+				topK: 60,
+				maxOutputTokens: 4000,
+				responseMimeType: 'text/plain',
+				candidateCount: 1,
+				stopSequences: [],
+				seed: null
+			},
+			geminiSafety: {
+				harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+				hateSpeech: 'BLOCK_MEDIUM_AND_ABOVE',
+				sexuallyExplicit: 'BLOCK_MEDIUM_AND_ABOVE',
+				dangerousContent: 'BLOCK_MEDIUM_AND_ABOVE'
+			},
+			perplexityParams: {
+				temperature: 0.7,
+				max_tokens: 4000,
+				top_p: 0.9,
+				top_k: 60,
+				frequency_penalty: 0.2,
+				presence_penalty: 0.2,
+				stream: false,
+				search_domain_filter: [],
+				search_recency_filter: 'month',
+				search_mode: 'academic',
+				return_related_questions: true,
+				return_citations: true,
+				return_images: true,
+				search_context_size: 12
+			}
+		},
+		reasoning: {
+			geminiModel: 'gemini-2.5-pro',
+			perplexityModel: 'sonar-reasoning-pro',
+			geminiParams: {
+				temperature: 0.3,
+				topP: 0.6,
+				topK: 20,
+				maxOutputTokens: 3000,
+				responseMimeType: 'text/plain',
+				candidateCount: 1,
+				stopSequences: [],
+				seed: null
+			},
+			geminiSafety: {
+				harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+				hateSpeech: 'BLOCK_MEDIUM_AND_ABOVE',
+				sexuallyExplicit: 'BLOCK_MEDIUM_AND_ABOVE',
+				dangerousContent: 'BLOCK_MEDIUM_AND_ABOVE'
+			},
+			perplexityParams: {
+				temperature: 0.2,
+				max_tokens: 3000,
+				top_p: 0.6,
+				top_k: 20,
+				frequency_penalty: 0.0,
+				presence_penalty: 0.0,
+				stream: false,
+				search_domain_filter: [],
+				search_recency_filter: 'month',
+				search_mode: 'web',
+				return_related_questions: false,
+				return_citations: true,
+				return_images: false,
+				search_context_size: 10
+			}
+		},
+		youtube: {
+			geminiModel: 'gemini-2.5-pro',
+			geminiParams: {
+				temperature: 0.3,
+				topP: 0.8,
+				topK: 40,
+				maxOutputTokens: 2048,
+				responseMimeType: 'text/plain',
+				candidateCount: 1,
+				stopSequences: [],
+				seed: null
+			},
+			geminiSafety: {
+				harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+				hateSpeech: 'BLOCK_MEDIUM_AND_ABOVE',
+				sexuallyExplicit: 'BLOCK_MEDIUM_AND_ABOVE',
+				dangerousContent: 'BLOCK_MEDIUM_AND_ABOVE'
+			}
+		}
+	},
+	
+	// Advanced Exa parameters (optimal defaults from docs)
+	exaSearchType: 'auto',
+	exaCategory: '',
+	exaIncludeDomains: [],
+	exaExcludeDomains: [],
+	exaStartDate: '',
+	exaEndDate: '',
+	exaIncludeText: [],
+	exaExcludeText: [],
+	exaGetText: true,
+	exaGetHighlights: true,
+	exaGetSummary: true,
+	
+	// Custom prompts with professional frameworks optimized for Obsidian
+	enableCustomPrompts: false,
+	quickPrompt: "### Quick Research Response Framework\\n\\nYou are an expert researcher providing concise, actionable insights. Focus on immediate value and clear conclusions.\\n\\n**Research Query:** \\\"{query}\\\"\\n\\n**Response Structure:**\\n## 🎯 Key Findings\\n- Present 2-3 most important insights\\n- Use bullet points for clarity\\n- Keep each point to 1-2 sentences\\n\\n## 📚 Essential Sources\\nWhen referencing sources, use this format:\\n- **Source Name** - Brief description [^1]\\n- **Source Name** - Brief description [^2]\\n\\n## 🔗 Recommended Reading\\nFor additional external resources, format as:\\n- [Resource Title](https://example.com) - Why this is valuable\\n\\n---\\n### Citations\\n[^1]: Full citation with author, title, publication, date\\n[^2]: Full citation with author, title, publication, date\\n\\n**Guidelines:**\\n- Maximum 300 words total\\n- Prioritize recent, authoritative sources\\n- Include actionable next steps if relevant\\n- Use Obsidian-compatible markdown formatting",
+
+	comprehensivePrompt: "### Comprehensive Research Analysis for Obsidian\\n\\nYou are a senior researcher conducting thorough analysis. Create well-structured content optimized for Obsidian knowledge management.\\n\\n**Research Topic:** \\\"{query}\\\"\\n\\n**Response Framework:**\\n\\n## 📋 Executive Summary\\nBrief overview highlighting key themes and conclusions (2-3 sentences)\\n\\n## 🔍 Detailed Analysis\\n\\n### Core Concepts\\n- **Concept 1**: Definition and significance [^1]\\n- **Concept 2**: Definition and significance [^2]\\n- **Concept 3**: Definition and significance [^3]\\n\\n### Current Landscape\\nAnalyze current state, trends, and developments with proper citations [^4][^5]\\n\\n### Multiple Perspectives\\n#### Academic Perspective\\nResearch findings and scholarly insights [^6]\\n\\n#### Industry Perspective\\nPractical applications and market trends [^7]\\n\\n#### Critical Analysis\\nLimitations, controversies, or gaps [^8]\\n\\n## 🌐 External Resources\\nFor deeper exploration:\\n- [Primary Resource](https://example.com) - Comprehensive overview\\n- [Research Database](https://example.com) - Latest studies\\n- [Expert Analysis](https://example.com) - Professional insights\\n\\n## 🔗 Related Topics for Your Vault\\nConsider exploring: [[Topic 1]], [[Topic 2]], [[Topic 3]]\\n\\n---\\n### Sources and Citations\\n[^1]: Author, Title, Publication, Year, URL\\n[^2]: Author, Title, Publication, Year, URL\\n[^3]: Author, Title, Publication, Year, URL\\n[^4]: Author, Title, Publication, Year, URL\\n[^5]: Author, Title, Publication, Year, URL\\n[^6]: Author, Title, Publication, Year, URL\\n[^7]: Author, Title, Publication, Year, URL\\n[^8]: Author, Title, Publication, Year, URL\\n\\n**Quality Standards:**\\n- 600-800 words with proper structure\\n- Minimum 8 quality citations with full bibliographic details\\n- Use Obsidian-compatible internal links for related concepts\\n- External links open in new browser tabs when clicked",
+
+	deepPrompt: "### Deep Research Investigation for Advanced Knowledge Management\\n\\nYou are a leading expert conducting comprehensive multi-dimensional analysis. Create research-grade content structured for Obsidian's advanced features.\\n\\n**Research Question:** \\\"{query}\\\"\\n\\n## 🎯 Research Overview\\n**Scope**: Comprehensive multi-perspective analysis\\n**Approach**: Systematic investigation across disciplines\\n**Expected Outcome**: Research-grade insights with complete documentation\\n\\n## 📚 Foundation Analysis\\n\\n### Historical Context\\nEvolution and development of the topic [^1][^2]\\n\\n### Theoretical Framework\\n- **Primary Theory A**: Core principles and applications [^3]\\n- **Primary Theory B**: Alternative approaches and methodologies [^4]\\n- **Synthesis**: Integration and comparative analysis [^5]\\n\\n## 🔬 Multi-Dimensional Investigation\\n\\n### Dimension 1: Academic Research\\n**Methodology**: Systematic literature review\\n**Key Findings**: [^6][^7][^8]\\n- Finding 1 with supporting evidence\\n- Finding 2 with methodological details\\n- Finding 3 with statistical significance\\n\\n### Dimension 2: Professional Practice\\n**Industry Applications**: [^9][^10]\\n- Implementation strategies and success factors\\n- Challenges and mitigation approaches\\n- ROI and performance metrics\\n\\n### Dimension 3: Interdisciplinary Connections\\n**Cross-Field Insights**: [^11][^12]\\n- Connections to [[Related Field 1]]\\n- Applications in [[Related Field 2]]\\n- Emerging interdisciplinary opportunities\\n\\n### Dimension 4: Future Implications\\n**Trend Analysis**: [^13][^14]\\n- Short-term developments (1-2 years)\\n- Medium-term evolution (3-5 years)\\n- Long-term transformation (5+ years)\\n\\n## ⚖️ Critical Evaluation\\n\\n### Strengths and Advantages\\nEvidence-based assessment of positive aspects [^15]\\n\\n### Limitations and Challenges\\nSystematic analysis of constraints and difficulties [^16]\\n\\n### Controversies and Debates\\nBalanced examination of disputed areas [^17][^18]\\n\\n## 🌐 Comprehensive Resource Library\\n\\n### Primary Sources\\n- [Foundational Research](https://example.com) - Seminal papers and studies\\n- [Current Literature](https://example.com) - Recent peer-reviewed articles\\n- [Institutional Reports](https://example.com) - Official analyses and data\\n\\n### Secondary Sources\\n- [Expert Commentary](https://example.com) - Professional perspectives\\n- [Industry Analysis](https://example.com) - Market and trend reports\\n- [Educational Resources](https://example.com) - Learning and development materials\\n\\n### Specialized Databases\\n- [Academic Database](https://example.com) - Scholarly articles and citations\\n- [Professional Database](https://example.com) - Industry insights and case studies\\n- [Government Resources](https://example.com) - Policy and regulatory information\\n\\n## 🔗 Knowledge Graph Connections\\n**Vault Integration Suggestions:**\\n- Create new notes: [[Topic Analysis]], [[Methodology Review]], [[Implementation Guide]]\\n- Link to existing: [[Research Methods]], [[Industry Trends]], [[Theoretical Frameworks]]\\n- Tag suggestions: #research #analysis #[topic-specific-tags]\\n\\n## 📊 Synthesis and Conclusions\\n\\n### Primary Conclusions\\nEvidence-based summary of key findings with confidence levels\\n\\n### Research Gaps\\nIdentified areas requiring further investigation\\n\\n### Actionable Recommendations\\nSpecific next steps for different stakeholder groups\\n\\n---\\n### Complete Bibliography\\n[^1]: Author, A. (Year). \\\"Article Title,\\\" *Journal Name*, Vol(Issue), pp. Pages. DOI/URL\\n[^2]: Author, B. (Year). *Book Title*. Publisher. ISBN. URL\\n[^3]: Author, C. (Year). \\\"Chapter Title,\\\" in *Book Title*, Editor (Ed.), Publisher, pp. Pages\\n[^4]: Organization. (Year). \\\"Report Title.\\\" *Publication Series*. Retrieved from URL\\n[^5]: Author, D. (Year). \\\"Conference Paper Title,\\\" *Conference Proceedings*, Location, Date\\n[^6]: Author, E. et al. (Year). \\\"Research Article,\\\" *Academic Journal*, Vol(Issue), pp. Pages\\n[^7]: Author, F. (Year). \\\"Analysis Title,\\\" *Professional Publication*, Date. URL\\n[^8]: Institution. (Year). \\\"Study Report,\\\" *Research Series*, Report Number. URL\\n[^9]: Author, G. (Year). \\\"Industry Report,\\\" *Business Publication*, Date. URL\\n[^10]: Expert, H. (Year). \\\"Commentary Title,\\\" *Expert Platform*, Date. URL\\n[^11]: Author, I. (Year). \\\"Cross-Disciplinary Study,\\\" *Interdisciplinary Journal*, Vol(Issue)\\n[^12]: Researcher, J. (Year). \\\"Integration Analysis,\\\" *Academic Publisher*, Location\\n[^13]: Analyst, K. (Year). \\\"Future Trends Report,\\\" *Research Institute*, Date. URL\\n[^14]: Futurist, L. (Year). \\\"Projection Analysis,\\\" *Think Tank Publication*, Date\\n[^15]: Evaluator, M. (Year). \\\"Strengths Assessment,\\\" *Evaluation Journal*, Vol(Issue)\\n[^16]: Critic, N. (Year). \\\"Limitations Review,\\\" *Critical Analysis Quarterly*, Vol(Issue)\\n[^17]: Debater, O. (Year). \\\"Controversy Overview,\\\" *Debate Forum*, Date. URL\\n[^18]: Scholar, P. (Year). \\\"Dispute Analysis,\\\" *Academic Review*, Vol(Issue), pp. Pages\\n\\n**Research Standards:**\\n- 1200-1500 words with academic rigor\\n- Minimum 18 high-quality citations with complete bibliographic information\\n- Multiple source types: peer-reviewed, professional, institutional\\n- Full integration with Obsidian linking and tagging systems\\n- Research-grade analysis suitable for academic or professional publication",
+
+	reasoningPrompt: "### Advanced Logical Reasoning Framework for Obsidian Knowledge Systems\\n\\nYou are a critical thinking expert with exceptional analytical capabilities. Conduct systematic logical analysis optimized for Obsidian's knowledge management features.\\n\\n**Reasoning Task:** \\\"{query}\\\"\\n\\n## 🎯 Objective Definition\\n**Primary Goal**: Deconstruct the query, evaluate evidence, and synthesize a logically sound conclusion.\\n**Key Questions**:\\n1. What are the core assumptions?\\n2. What is the quality of evidence?\\n3. What are the potential biases?\\n4. What are the logical implications?\\n\\n## 📚 Evidence Deconstruction\\n\\n### Premise Identification\\n- **Premise 1**: [Statement] - (Source: [^1], Confidence: [High/Medium/Low])\\n- **Premise 2**: [Statement] - (Source: [^2], Confidence: [High/Medium/Low])\\n- **Premise 3**: [Statement] - (Source: [^3], Confidence: [High/Medium/Low])\\n\\n### Evidence Evaluation\\n- **Source Credibility**: Assessment of author, publication, and potential conflicts of interest [^4][^5]\\n- **Data Validity**: Methodological rigor, sample size, and statistical significance [^6][^7]\\n- **Logical Soundness**: Coherence and consistency of arguments [^8]\\n\\n## 🧠 Cognitive Bias Analysis\\n\\n### Potential Biases Detected\\n- **Confirmation Bias**: Tendency to favor information confirming existing beliefs [^9][^10]\\n- **Anchoring Bias**: Over-reliance on initial information [^11]\\n- **Availability Heuristic**: Overestimating importance of easily recalled information [^12]\\n- **Selection Bias**: Non-random sampling leading to skewed conclusions [^13]\\n\\n### Mitigation Strategies\\n- **Seeking Disconfirming Evidence**: Actively looking for data that challenges the premises [^14]\\n- **Considering Alternative Perspectives**: Exploring different viewpoints and frameworks [^15]\\n- **Blinding and Control Groups**: Methodological approaches to reduce bias in data collection [^16]\\n\\n## ⛓️ Logical Inference and Synthesis\\n\\n### Argument Mapping\\n- **Logical Chain 1**: [Premise 1] + [Premise 2] -> [Intermediate Conclusion A] [^17]\\n- **Logical Chain 2**: [Intermediate Conclusion A] + [Premise 3] -> [Final Conclusion B] [^18]\\n\\n### Hypothesis Testing\\n- **Hypothesis H1**: [Statement] - (Supporting Evidence: [^19], Contradicting Evidence: [^20])\\n- **Hypothesis H2**: [Statement] - (Supporting Evidence: [^21], Contradicting Evidence: [^22])\\n\\n### Synthesis of Conclusions\\n- **Primary Conclusion**: [Synthesized statement] with [Confidence Level]\\n- **Secondary Conclusion**: [Alternative or nuanced finding]\\n- **Unresolved Issues**: [Questions requiring further analysis]\\n\\n## ⚖️ Uncertainty and Limitation Assessment\\n\\n### Quantifying Uncertainty\\n- **Confidence Intervals**: Statistical range of plausible values [^23]\\n- **Sensitivity Analysis**: Impact of changing key assumptions [^24]\\n- **Scenario Planning**: Exploring outcomes under different conditions [^25]\\n\\n### Acknowledged Limitations\\n- **Data Gaps**: Information that is unavailable or incomplete [^26]\\n- **Methodological Constraints**: Limitations of the research design [^27]\\n- **Scope Boundaries**: What is not covered by this analysis [^28]\\n\\n## 🔗 Knowledge Integration for Obsidian\\n\\n**Actionable Insights**:\\n- **Decision Point**: [Key decision this analysis informs]\\n- **Next Steps**: [Recommended actions based on conclusions]\\n\\n**Vault Connections**:\\n- **Create Notes**: [[Logical Deconstruction]], [[Bias Mitigation Strategies]], [[Evidence Evaluation Checklist]]\\n- **Link to Notes**: [[Critical Thinking]], [[Mental Models]], [[Argument Mapping]]\\n- **Tags**: #reasoning #logic #critical-thinking #[topic-specific]\\n\\n---\\n### Bibliography and Evidence Base\\n[^1]: Source for Premise 1\\n[^2]: Source for Premise 2\\n[^3]: Source for Premise 3\\n[^4]: Credibility assessment source\\n[^5]: Conflict of interest documentation\\n[^6]: Methodological review source\\n[^7]: Statistical analysis documentation\\n[^8]: Logical soundness evaluation\\n[^9]: Confirmation bias research\\n[^10]: Disconfirming evidence source\\n[^11]: Anchoring bias study\\n[^12]: Availability heuristic research\\n[^13]: Selection bias analysis\\n[^14]: Disconfirming evidence strategy source\\n[^15]: Alternative perspectives documentation\\n[^16]: Control group methodology source\\n[^17]: Logical chain 1 evidence\\n[^18]: Logical chain 2 evidence\\n[^19]: Hypothesis H1 support\\n[^20]: Hypothesis H1 contradiction\\n[^21]: Hypothesis H2 support\\n[^22]: Hypothesis H2 contradiction\\n[^23]: Confidence interval data source\\n[^24]: Sensitivity analysis report\\n[^25]: Scenario planning documentation\\n[^26]: Data gap analysis\\n[^27]: Methodological constraint source\\n[^28]: Scope definition document\\n\\n**Reasoning Standards**:\\n- 1000-1300 words with complete logical documentation\\n- Minimum 28 citations supporting the reasoning process\\n- Systematic bias detection and uncertainty quantification\\n- Full integration with Obsidian knowledge management features\\n- Professional-grade logical analysis suitable for strategic decision-making",
+
+	youtubePrompt: "### Comprehensive YouTube Video Analysis for Obsidian\\n\\n**Video URL:** {url}\\n\\nYou are a media analysis expert creating comprehensive video documentation for academic and professional knowledge management.\\n\\n## 📺 Video Documentation Framework\\n\\n### Basic Information\\n**Title**: [Extract video title]\\n**Creator/Channel**: [Channel name and credentials]\\n**Duration**: [Video length]\\n**Upload Date**: [Publication date]\\n**URL**: [Video URL] [^1]\\n\\n### Content Analysis Structure\\n\\n## 🎯 Executive Summary\\nBrief overview of video's main purpose and key value (2-3 sentences)\\n\\n## 📚 Content Breakdown\\n\\n### Primary Topics Covered\\n1. **Topic 1**: Key points and insights [^2]\\n2. **Topic 2**: Supporting arguments and evidence [^3]\\n3. **Topic 3**: Practical applications discussed [^4]\\n\\n### Key Insights and Data\\n- **Important Statistic/Claim 1**: [Quote with timestamp] [^5]\\n- **Important Statistic/Claim 2**: [Quote with timestamp] [^6]\\n- **Important Statistic/Claim 3**: [Quote with timestamp] [^7]\\n\\n### Notable Quotes\\n> \\\"Significant quote 1\\\" - [Speaker name, timestamp] [^8]\\n> \\\"Significant quote 2\\\" - [Speaker name, timestamp] [^9]\\n\\n## 🔍 Critical Evaluation\\n\\n### Credibility Assessment\\n- **Speaker Credentials**: [Qualifications and expertise] [^10]\\n- **Source Quality**: [Evidence quality and citations used] [^11]\\n- **Bias Considerations**: [Potential limitations or perspectives] [^12]\\n\\n### Educational Value\\n- **Target Audience**: [Who benefits most from this content]\\n- **Learning Outcomes**: [What viewers should understand]\\n- **Practical Applications**: [How to apply the information]\\n\\n## 🌐 Related Resources\\nFor additional context and verification:\\n- [Primary Source/Research](https://example.com) - Original research mentioned\\n- [Expert Analysis](https://example.com) - Related expert commentary\\n- [Institutional Resource](https://example.com) - Official documentation\\n\\n## 🔗 Knowledge Vault Integration\\n**Suggested Internal Links**: [[Video Analysis Method]], [[Research Methodology]], [[Topic Category]]\\n**Recommended Tags**: #video-analysis #[topic-specific] #[creator-name] #research\\n**Related Notes**: Consider creating [[Follow-up Research]] and [[Implementation Plan]]\\n\\n---\\n### Video Citations and References\\n[^1]: Video Source: [Creator Name]. \\\"[Video Title].\\\" YouTube, [Upload Date]. {url}\\n[^2]: Reference for Topic 1 information - timestamp or external source\\n[^3]: Reference for Topic 2 content - timestamp or supporting research\\n[^4]: Reference for Topic 3 applications - timestamp or related documentation\\n[^5]: Timestamp reference for statistic/claim 1 - [mm:ss format]\\n[^6]: Timestamp reference for statistic/claim 2 - [mm:ss format]\\n[^7]: Timestamp reference for statistic/claim 3 - [mm:ss format]\\n[^8]: Quote reference with exact timestamp - [mm:ss format]\\n[^9]: Quote reference with exact timestamp - [mm:ss format]\\n[^10]: Speaker credential source - website, LinkedIn, or institutional affiliation\\n[^11]: Source quality documentation - research papers, data sources referenced\\n[^12]: Bias analysis source - independent evaluation or comparative analysis\\n\\n**Analysis Standards:**\\n- 600-800 words with comprehensive video documentation\\n- Minimum 12 citations including timestamps and external sources\\n- Full Obsidian compatibility with internal linking\\n- Professional media analysis suitable for academic reference\\n- Include actionable insights and practical applications\\n\\nPlease analyze the video thoroughly and provide detailed documentation.",
+	
+	// Provider search/chat mode settings
+	providerSearchModes: {
+		gemini: true,
+		perplexity: true,
+		tavily: true,
+		exa: true,
+	},
+	
+	// Context Memory System
+	contextMemoryEnabled: true,
+	maxContextMessages: 10,
+	contextMemoryStrategy: 'recent',
+	
+	// Advanced Configuration Presets
+	configurationPresets: {
+		"QuickFactCheck": {
+			description: "Fast, concise answers for quick verification.",
+			modeName: "quick",
+			provider: "perplexity",
+			parameters: {
+				temperature: 0.2,
+				max_tokens: 500,
+				search_recency_filter: "day"
+			}
+		},
+		"DeepDiveAnalysis": {
+			description: "In-depth academic research for detailed papers.",
+			modeName: "deep",
+			provider: "gemini",
+			parameters: {
+				temperature: 0.8,
+				topP: 0.9,
+				maxOutputTokens: 4000
+			}
+		},
+		"CreativeBrainstorming": {
+			description: "Generate creative ideas and outlines.",
+			modeName: "comprehensive",
+			provider: "gemini",
+			parameters: {
+				temperature: 1.2,
+				topP: 0.95
+			}
+		}
+	},
+	
+	// UI Preferences
+	uiPreferences: {
+		showAdvancedSettings: false,
+		showParameterTooltips: true,
+		autoSaveSettings: true,
+		showPerformanceMetrics: false,
+		compactMode: false,
+	},
+	
+	// Backward compatibility
+	geminiModel: 'gemini-2.5-flash',
+	perplexityModel: 'sonar-pro',
+	researchModeModels: {
+		quick: 'gemini-2.5-flash-lite',
+		comprehensive: 'gemini-2.5-flash',
+		deep: 'gemini-2.5-pro',
+		reasoning: 'gemini-2.5-pro',
+		youtube: 'gemini-2.5-pro',
+	},
+};
+
+// Chat View constants
+export const CHAT_VIEW_TYPE = "gemini-chat-view";
+
+// Chat View Class
+export class GeminiChatView extends ItemView {
+	private chatContainer!: HTMLElement;
+	private inputContainer!: HTMLElement;
+	private messageContainer!: HTMLElement;
+	private plugin: GeminiWebSearchPlugin;
+	
+	// YouTube video context tracking
+	private currentVideoContext: {
+		url: string;
+		videoId: string;
+		title?: string;
+		analyzed: boolean;
+	} | null = null;
+	
+	// Video context UI references
+	private videoContextContainer!: HTMLElement;
+	private videoContextTitle!: HTMLElement;
+	
+	public currentResearchMode!: {
+		id: string;
+		label: string;
+		description: string;
+		model: string;
+		perplexityModel: string;
+		exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast';
+		exaCategory: string;
+		providerLock?: string;
+		requiresUrl?: boolean;
+	};
+
+	constructor(leaf: WorkspaceLeaf, plugin: GeminiWebSearchPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
+
+	getViewType() {
+		return CHAT_VIEW_TYPE;
+	}
+
+	getDisplayText() {
+		return 'AI Web Search Chat';
+	}
+
+	getIcon() {
+		return 'message-circle';
+	}
+
+	async onOpen() {
+		const container = this.containerEl.children[1] as HTMLElement;
+		container.empty();
+		container.addClass('gemini-chat-container');
+
+		// Set default research mode
+		this.setResearchMode({
+			id: 'comprehensive',
+			label: 'Comprehensive',
+			description: 'Balanced depth and speed for most research tasks',
+			model: 'gemini-2.5-flash',
+			perplexityModel: 'sonar-pro',
+			exaSearchType: 'auto',
+			exaCategory: ''
+		});
+
+		this.createInputArea();
+		this.createChatArea();
+	}
+
+	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string, exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast', exaCategory: string, providerLock?: string, requiresUrl?: boolean}) {
+		this.currentResearchMode = mode;
+		
+		// Update UI to reflect active mode
+		const buttons = this.inputContainer?.querySelectorAll('.research-mode-btn');
+		buttons?.forEach(btn => {
+			btn.removeClass('active');
+			if (btn.getAttribute('data-mode') === mode.id) {
+				btn.addClass('active');
+			}
+		});
+		
+		// Update video context UI if in YouTube mode
+		this.updateVideoContextUI();
+	}
+
+	createInputArea() {
+		this.inputContainer = this.containerEl.createEl('div', { cls: 'gemini-input-container' });
+		
+		// Research mode selector
+		const researchModeContainer = this.inputContainer.createEl('div', { cls: 'research-mode-container' });
+		const researchLabel = researchModeContainer.createEl('div', { cls: 'research-mode-label', text: 'Research Mode:' });
+		const researchButtonsContainer = researchModeContainer.createEl('div', { cls: 'research-mode-buttons' });
+
+		const researchModes = [
+			{ id: 'quick', label: 'Quick', description: 'Fast answers for immediate needs', model: 'gemini-2.5-flash-lite', perplexityModel: 'sonar', exaSearchType: 'fast' as const, exaCategory: '' },
+			{ id: 'comprehensive', label: 'Comprehensive', description: 'Balanced depth and speed for most research tasks', model: 'gemini-2.5-flash', perplexityModel: 'sonar-pro', exaSearchType: 'auto' as const, exaCategory: '' },
+			{ id: 'deep', label: 'Deep', description: 'Thorough analysis for complex topics', model: 'gemini-2.5-pro', perplexityModel: 'sonar-deep-research', exaSearchType: 'neural' as const, exaCategory: '' },
+			{ id: 'reasoning', label: 'Reasoning', description: 'Logic-focused analysis for decision making', model: 'gemini-2.5-pro', perplexityModel: 'sonar-reasoning-pro', exaSearchType: 'neural' as const, exaCategory: '' },
+			{ id: 'youtube', label: 'YouTube', description: 'Video content analysis and Q&A', model: 'gemini-2.5-pro', perplexityModel: '', exaSearchType: 'auto' as const, exaCategory: '', providerLock: 'gemini', requiresUrl: true }
+		];
+
+		researchModes.forEach(mode => {
+			const button = researchButtonsContainer.createEl('button', { 
+				cls: 'research-mode-btn',
+				attr: { 'data-mode': mode.id }
+			});
+			button.createEl('div', { cls: 'mode-label', text: mode.label });
+			button.createEl('div', { cls: 'mode-description', text: mode.description });
+			
+			button.onclick = () => this.setResearchMode(mode);
+		});
+
+		// Set default active button
+		researchButtonsContainer.querySelector('[data-mode="comprehensive"]')?.addClass('active');
+
+		// Video context indicator (hidden by default)
+		this.videoContextContainer = this.inputContainer.createEl('div', { cls: 'video-context-container' });
+		this.videoContextContainer.style.display = 'none';
+		this.videoContextContainer.createEl('div', { cls: 'video-context-icon', text: '🎬' });
+		this.videoContextTitle = this.videoContextContainer.createEl('div', { cls: 'video-context-title' });
+		const clearVideoBtn = this.videoContextContainer.createEl('button', { cls: 'clear-video-btn', text: '✕' });
+		clearVideoBtn.onclick = () => this.clearVideoContext();
+
+		// Input area
+		const inputArea = this.inputContainer.createEl('div', { cls: 'input-area' });
+		const textarea = inputArea.createEl('textarea', { 
+			cls: 'gemini-chat-input',
+			attr: { placeholder: 'Ask me anything... (Try: "Explain quantum computing" or paste a YouTube URL for video analysis)' }
+		});
+		
+		const buttonArea = inputArea.createEl('div', { cls: 'button-area' });
+		const sendButton = buttonArea.createEl('button', { cls: 'send-button', text: 'Send' });
+		const saveButton = buttonArea.createEl('button', { cls: 'save-button', text: 'Send & Save' });
+		const clearButton = buttonArea.createEl('button', { cls: 'clear-button', text: 'New Chat' });
+
+		// Event listeners
+		sendButton.onclick = () => this.handleSend(textarea.value, false);
+		saveButton.onclick = () => this.handleSend(textarea.value, false, true);
+		clearButton.onclick = () => this.clearChat();
+		
+		textarea.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault();
+				this.handleSend(textarea.value, false);
+			}
+		});
+	}
+
+	createChatArea() {
+		this.chatContainer = this.containerEl.createEl('div', { cls: 'gemini-chat-area' });
+		this.messageContainer = this.chatContainer.createEl('div', { cls: 'message-container' });
+		
+		// Welcome message
+		this.addMessage('system', '👋 Welcome to AI Web Search Chat! Choose your research mode and start asking questions.');
+	}
+
+	async handleSend(message: string, insertToNote: boolean, saveToFolder: boolean = false) {
+		if (!message.trim()) return;
+
+		// YouTube mode Smart Context validation and processing
+		if (this.currentResearchMode?.id === 'youtube') {
+			const isYouTubeUrl = this.isValidYouTubeUrl(message.trim());
+			
+			if (isYouTubeUrl) {
+				// New YouTube video URL provided
+				const videoId = this.extractYouTubeVideoId(message.trim());
+				if (videoId) {
+					this.setVideoContext(message.trim(), videoId);
+					
+					// Clear input and analyze video
+					const textarea = this.inputContainer.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+					textarea.value = '';
+					
+					this.addMessage('user', message);
+					const thinkingId = this.addMessage('assistant', '🎬 Analyzing YouTube video...', true);
+					
+					try {
+						const analysis = await this.analyzeYouTubeVideo(message.trim(), videoId);
+						this.updateMessage(thinkingId, analysis);
+						
+						if (saveToFolder) {
+							await this.saveToFolder();
+						}
+						
+						if (insertToNote) {
+							this.insertToActiveNote(analysis);
+						}
+					} catch (error) {
+						this.updateMessage(thinkingId, `❌ Failed to analyze video: ${error instanceof Error ? error.message : String(error)}`);
+					}
+					return;
+				}
+			} else if (!this.currentVideoContext) {
+				// No video context and not a URL - request URL first
+				this.addMessage('assistant', '🎬 **YouTube Mode Active**\n\nPlease provide a YouTube video URL first, then you can ask questions about it.\n\nExample: `https://www.youtube.com/watch?v=example`');
+				return;
+			}
+			// If we have video context and it's not a URL, treat as question about current video
+		}
+
+		// Clear input
+		const textarea = this.inputContainer.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+		textarea.value = '';
+
+		// Add user message
+		this.addMessage('user', message);
+
+		// Check if we should use search mode or chat mode
+		const provider = this.plugin.settings.provider;
+		const isSearchMode = this.plugin.settings.providerSearchModes?.[provider] ?? true;
+		
+		// Add thinking message
+		const thinkingId = this.addMessage('assistant', isSearchMode ? 'Searching the web...' : 'Thinking...', true);
+
+		try {
+			let response: string;
+
+			if (this.currentResearchMode?.id === 'youtube' && this.currentVideoContext) {
+				// Handle YouTube video questions
+				response = await this.askAboutVideo(message, this.currentVideoContext);
+			} else if (isSearchMode) {
+				// Use web search mode
+				response = await this.plugin.performWebSearch(message);
+			} else {
+				// Use chat mode with context
+				const chatHistory = this.getChatHistory();
+				response = await this.plugin.performChatWithContext(message, chatHistory);
+			}
+
+			this.updateMessage(thinkingId, response);
+
+			if (saveToFolder) {
+				await this.saveToFolder();
+			}
+
+			if (insertToNote) {
+				this.insertToActiveNote(response);
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.updateMessage(thinkingId, `❌ Error: ${errorMessage}`);
+		}
+	}
+
+	// Get chat history for context in chat mode
+	getChatHistory(): Array<{role: string, content: string}> {
+		if (!this.plugin.settings.contextMemoryEnabled) {
+			return [];
+		}
+
+		const messages: Array<{role: string, content: string}> = [];
+		const messageElements = this.messageContainer.querySelectorAll('.chat-message');
+		
+		messageElements.forEach(element => {
+			const role = element.classList.contains('user') ? 'user' : 'assistant';
+			const contentEl = element.querySelector('.message-content');
+			if (contentEl && !contentEl.classList.contains('thinking')) {
+				messages.push({
+					role,
+					content: contentEl.textContent || ''
+				});
+			}
+		});
+		
+		// Apply context memory strategy
+		switch (this.plugin.settings.contextMemoryStrategy) {
+			case 'recent':
+				return messages.slice(-this.plugin.settings.maxContextMessages);
+			case 'summary':
+				// For now, just return recent messages. In future, could implement summarization
+				return messages.slice(-this.plugin.settings.maxContextMessages);
+			case 'token-limit':
+				// Estimate tokens and trim accordingly
+				const maxTokens = 4000; // Conservative estimate
+				let totalTokens = 0;
+				const recentMessages = [];
+				
+				for (let i = messages.length - 1; i >= 0; i--) {
+					const estimatedTokens = messages[i].content.length / 4; // Rough estimate
+					if (totalTokens + estimatedTokens > maxTokens) break;
+					totalTokens += estimatedTokens;
+					recentMessages.unshift(messages[i]);
+				}
+				
+				return recentMessages;
+			default:
+				return messages.slice(-this.plugin.settings.maxContextMessages);
+		}
+	}
+
+	// Analyze YouTube video using Gemini's capabilities
+	async analyzeYouTubeVideo(url: string, videoId: string): Promise<string> {
+		if (!this.plugin.settings.geminiApiKey) {
+			throw new Error('Gemini API key is required for YouTube video analysis');
+		}
+
+		// Use custom prompt if available, otherwise use default
+		let prompt: string;
+		if (this.plugin.settings.enableCustomPrompts && this.plugin.settings.youtubePrompt) {
+			prompt = this.plugin.settings.youtubePrompt.replace('{url}', url);
+		} else {
+			prompt = `### Comprehensive YouTube Video Analysis for Obsidian
+
+**Video URL:** ${url}
+
+You are a media analysis expert creating comprehensive video documentation for academic and professional knowledge management.
+
+## 📺 Video Documentation Framework
+
+### Basic Information
+**Title**: [Extract video title]  
+**Creator/Channel**: [Channel name and credentials]  
+**Duration**: [Video length]  
+**Upload Date**: [Publication date]  
+**URL**: [Video URL] [^1]
+
+### Content Analysis Structure
+
+## 🎯 Executive Summary
+Brief overview of video's main purpose and key value (2-3 sentences)
+
+## 📚 Content Breakdown
+
+### Primary Topics Covered
+1. **Topic 1**: Key points and insights [^2]
+2. **Topic 2**: Supporting arguments and evidence [^3]  
+3. **Topic 3**: Practical applications discussed [^4]
+
+### Key Insights and Data
+- **Important Statistic/Claim 1**: [Quote with timestamp] [^5]
+- **Important Statistic/Claim 2**: [Quote with timestamp] [^6]
+- **Important Statistic/Claim 3**: [Quote with timestamp] [^7]
+
+### Notable Quotes
+> "Significant quote 1" - [Speaker name, timestamp] [^8]
+> "Significant quote 2" - [Speaker name, timestamp] [^9]
+
+## 🔍 Critical Evaluation
+
+### Credibility Assessment
+- **Speaker Credentials**: [Qualifications and expertise] [^10]
+- **Source Quality**: [Evidence quality and citations used] [^11]
+- **Bias Considerations**: [Potential limitations or perspectives] [^12]
+
+### Educational Value
+- **Target Audience**: [Who benefits most from this content]
+- **Learning Outcomes**: [What viewers should understand]
+- **Practical Applications**: [How to apply the information]
+
+## 🌐 Related Resources
+For additional context and verification:
+- [Primary Source/Research](https://example.com) - Original research mentioned
+- [Expert Analysis](https://example.com) - Related expert commentary  
+- [Institutional Resource](https://example.com) - Official documentation
+
+## 🔗 Knowledge Vault Integration
+**Suggested Internal Links**: [[Video Analysis Method]], [[Research Methodology]], [[Topic Category]]  
+**Recommended Tags**: #video-analysis #[topic-specific] #[creator-name] #research  
+**Related Notes**: Consider creating [[Follow-up Research]] and [[Implementation Plan]]
+
+---
+### Video Citations and References
+[^1]: Video Source: [Creator Name]. "[Video Title]." YouTube, [Upload Date]. ${url}
+[^2]: Reference for Topic 1 information - timestamp or external source
+[^3]: Reference for Topic 2 content - timestamp or supporting research
+[^4]: Reference for Topic 3 applications - timestamp or related documentation
+[^5]: Timestamp reference for statistic/claim 1 - [mm:ss format]
+[^6]: Timestamp reference for statistic/claim 2 - [mm:ss format]  
+[^7]: Timestamp reference for statistic/claim 3 - [mm:ss format]
+[^8]: Quote reference with exact timestamp - [mm:ss format]
+[^9]: Quote reference with exact timestamp - [mm:ss format]
+[^10]: Speaker credential source - website, LinkedIn, or institutional affiliation
+[^11]: Source quality documentation - research papers, data sources referenced
+[^12]: Bias analysis source - independent evaluation or comparative analysis
+
+**Analysis Standards:**
+- 600-800 words with comprehensive video documentation
+- Minimum 12 citations including timestamps and external sources
+- Full Obsidian compatibility with internal linking
+- Professional media analysis suitable for academic reference
+- Include actionable insights and practical applications
+
+Please analyze the video thoroughly and provide detailed documentation.`;
+		}
+
+		try {
+			const response = await requestUrl({
+				url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-goog-api-key': this.plugin.settings.geminiApiKey
+				},
+				body: JSON.stringify({
+					contents: [{
+						parts: [{
+							text: prompt,
+							fileData: {
+								mimeType: "video/*",
+								fileUri: url
+							}
+						}]
+					}],
+					generationConfig: {
+						temperature: 0.3,
+						topP: 0.8,
+						topK: 40,
+						maxOutputTokens: 2048
+					}
+				})
+			});
+
+			const data = response.json;
+			
+			if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+				return `🎬 **YouTube Video Analysis**\n\n${data.candidates[0].content.parts[0].text}`;
+			} else {
+				throw new Error('No valid response from Gemini API');
+			}
+		} catch (error) {
+			throw new Error(`Failed to analyze video: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	// Ask questions about the current video context
+	async askAboutVideo(question: string, videoContext: any): Promise<string> {
+		if (!this.plugin.settings.geminiApiKey) {
+			throw new Error('Gemini API key is required for video Q&A');
+		}
+
+		const prompt = `You are analyzing the YouTube video: ${videoContext.url}
+		
+User's question about the video: "${question}"
+
+Please provide a detailed answer based on the video content. If you cannot determine the specific answer from the video, please state that clearly and provide general guidance about where such information might typically be found in videos of this type.`;
+
+		try {
+			const response = await requestUrl({
+				url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-goog-api-key': this.plugin.settings.geminiApiKey
+				},
+				body: JSON.stringify({
+					contents: [{
+						parts: [{
+							text: prompt,
+							fileData: {
+								mimeType: "video/*",
+								fileUri: videoContext.url
+							}
+						}]
+					}],
+					generationConfig: {
+						temperature: 0.3,
+						topP: 0.8,
+						topK: 40,
+						maxOutputTokens: 1024
+					}
+				})
+			});
+
+			const data = response.json;
+			
+			if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+				return `🎬 **About the Video**\n\n${data.candidates[0].content.parts[0].text}`;
+			} else {
+				throw new Error('No valid response from Gemini API');
+			}
+		} catch (error) {
+			throw new Error(`Failed to answer about video: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async saveToFolder(): Promise<void> {
+		try {
+			const folderPath = this.plugin.settings.chatFolderName;
+			const vault = this.app.vault;
+
+			// Ensure folder exists
+			const folder = vault.getAbstractFileByPath(folderPath);
+			if (!folder) {
+				await vault.createFolder(folderPath);
+			}
+
+			// Generate filename based on template
+			const query = this.getFirstUserMessage();
+			const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+			let filename: string;
+
+			switch (this.plugin.settings.chatNoteTemplate) {
+				case 'timestamp-query':
+					filename = `${timestamp}-${query}`;
+					break;
+				case 'query-timestamp':
+					filename = `${query}-${timestamp}`;
+					break;
+				case 'query-only':
+					filename = query;
+					break;
+				case 'counter':
+					const existingFiles = vault.getFiles().filter(f => f.path.startsWith(folderPath));
+					filename = `chat-${existingFiles.length + 1}`;
+					break;
+				default:
+					filename = `${timestamp}-${query}`;
+			}
+
+			// Ensure unique filename
+			let uniqueFilename = `${filename}.md`;
+			let counter = 1;
+			while (vault.getAbstractFileByPath(`${folderPath}/${uniqueFilename}`)) {
+				uniqueFilename = `${filename}-${counter}.md`;
+				counter++;
+			}
+
+			const filePath = `${folderPath}/${uniqueFilename}`;
+			const chatContent = this.formatChatNote();
+			await vault.create(filePath, chatContent);
+
+			new Notice(`Chat saved to ${filePath}`);
+		} catch (error) {
+			new Notice(`Failed to save chat: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	// YouTube URL validation helper
+	isValidYouTubeUrl(url: string): boolean {
+		const youtubeRegex = /^https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S+)?$/;
+		return youtubeRegex.test(url.trim());
+	}
+
+	extractYouTubeVideoId(url: string): string | null {
+		const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+		return match ? match[1] : null;
+	}
+
+	formatChatNote(): string {
+		const timestamp = new Date().toLocaleString();
+		const provider = this.plugin.settings.provider;
+		const researchMode = this.currentResearchMode;
+		
+		let content = `# AI Web Search Chat\n\n`;
+		content += `**Date:** ${timestamp}\n`;
+		content += `**Provider:** ${provider}\n`;
+		content += `**Research Mode:** ${researchMode}\n\n`;
+		content += `---\n\n`;
+
+		// Extract messages from DOM
+		const messageElements = this.messageContainer.querySelectorAll('.message');
+		messageElements.forEach((messageEl) => {
+			const role = messageEl.classList.contains('user') ? 'User' : 'AI Assistant';
+			const contentEl = messageEl.querySelector('.message-content');
+			if (contentEl && !contentEl.classList.contains('thinking')) {
+				content += `## ${role}\n\n${contentEl.textContent || ''}\n\n`;
+			}
+		});
+
+		content += `\n---\n*Generated by AI Web Search Plugin*`;
+		return content;
+	}
+
+	getFirstUserMessage(): string {
+		const userMessages = this.messageContainer.querySelectorAll('.message.user .message-content');
+		if (userMessages.length > 0) {
+			return (userMessages[0] as HTMLElement).textContent?.trim().substring(0, 50) || 'chat';
+		}
+		return '';
+	}
+
+	// YouTube video context management
+	clearVideoContext(): void {
+		this.currentVideoContext = null;
+		this.updateVideoContextUI();
+	}
+
+	setVideoContext(url: string, videoId: string, title?: string): void {
+		this.currentVideoContext = {
+			url,
+			videoId,
+			title,
+			analyzed: true
+		};
+		this.updateVideoContextUI();
+	}
+
+	updateVideoContextUI(): void {
+		if (!this.videoContextContainer || !this.videoContextTitle) return;
+
+		if (this.currentVideoContext && this.currentResearchMode?.id === 'youtube') {
+			this.videoContextContainer.style.display = 'block';
+			this.videoContextTitle.textContent = this.currentVideoContext.title || 
+				`Video ${this.currentVideoContext.videoId}`;
+		} else {
+			this.videoContextContainer.style.display = 'none';
+		}
+	}
+
+	// Public method to get video context
+	getVideoContext() {
+		return this.currentVideoContext;
+	}
+
+	addMessage(role: 'user' | 'assistant' | 'system', content: string, isThinking: boolean = false): string {
+		const messageId = Date.now().toString();
+		const messageDiv = this.messageContainer.createEl('div', { 
+			cls: `message ${role}`,
+			attr: { 'data-id': messageId }
+		});
+
+		if (role === 'user') {
+			messageDiv.createEl('div', { cls: 'message-role', text: 'You' });
+		} else if (role === 'assistant') {
+			const roleHeader = messageDiv.createEl('div', { cls: 'message-role-header' });
+			roleHeader.createEl('span', { cls: 'message-role', text: 'AI Assistant' });
+			
+			// Add copy button for AI responses
+			const copyButton = roleHeader.createEl('button', {
+				cls: 'copy-button',
+				text: '📋 Copy'
+			});
+			
+			copyButton.addEventListener('click', () => {
+				const contentEl = messageDiv.querySelector('.message-content');
+				if (contentEl) {
+					navigator.clipboard.writeText(contentEl.textContent || '');
+					copyButton.textContent = '✅ Copied';
+					setTimeout(() => {
+						copyButton.textContent = '📋 Copy';
+					}, 2000);
+				}
+			});
+		}
+
+		const contentDiv = messageDiv.createEl('div', { cls: 'message-content' });
+		
+		if (isThinking) {
+			contentDiv.addClass('thinking');
+			
+			// Add progress bar for thinking messages
+			const progressContainer = contentDiv.createEl('div', { cls: 'progress-container' });
+			const progressBar = progressContainer.createEl('div', { cls: 'progress-bar' });
+			const progressFill = progressBar.createEl('div', { cls: 'progress-bar-fill' });
+			
+			// Create thinking text container
+			const thinkingText = contentDiv.createEl('div', { cls: 'thinking-text' });
+			thinkingText.textContent = content;
+			
+			// Animate progress bar
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress = Math.min(progress + Math.random() * 10, 90);
+				progressFill.style.width = `${progress}%`;
+			}, 200);
+			
+			// Store interval ID for cleanup
+			messageDiv.setAttribute('data-progress-interval', progressInterval.toString());
+		}
+		
+		// Enable text selection and render markdown
+		contentDiv.addClass('selectable-text');
+		
+		if (role === 'assistant' && !isThinking) {
+			// Render markdown for AI responses
+			this.renderMarkdownContent(contentDiv, content);
+		} else {
+			contentDiv.textContent = content;
+		}
+
+		// Scroll to bottom
+		this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+
+		return messageId;
+	}
+
+	updateMessage(messageId: string, newContent: string) {
+		const messageEl = this.messageContainer.querySelector(`[data-id="${messageId}"]`);
+		if (messageEl) {
+			// Clear any progress interval
+			const intervalId = messageEl.getAttribute('data-progress-interval');
+			if (intervalId) {
+				clearInterval(parseInt(intervalId));
+				messageEl.removeAttribute('data-progress-interval');
+			}
+			
+			const contentEl = messageEl.querySelector('.message-content') as HTMLElement;
+			if (contentEl) {
+				contentEl.removeClass('thinking');
+				contentEl.empty();
+				this.renderMarkdownContent(contentEl, newContent);
+			}
+		}
+	}
+
+	insertToActiveNote(content: string) {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (activeView) {
+			const editor = activeView.editor;
+			const cursor = editor.getCursor();
+			editor.replaceRange(`\n\n${content}\n`, cursor);
+			new Notice('Response inserted to note');
+		} else {
+			new Notice('No active note to insert into');
+		}
+	}
+
+	// Method to clear chat and start fresh conversation
+	clearChat() {
+		// Check if there are messages to clear
+		const hasMessages = this.messageContainer && this.messageContainer.children.length > 1; // More than welcome message
+		
+		if (hasMessages) {
+			// Show confirmation dialog for user safety
+			const confirmed = confirm('Are you sure you want to start a new chat? This will clear the current conversation.');
+			if (!confirmed) {
+				return;
+			}
+		}
+		
+		if (this.messageContainer) {
+			// Add fade out animation
+			this.messageContainer.addClass('clearing');
+			
+			setTimeout(() => {
+				this.messageContainer.empty();
+				this.messageContainer.removeClass('clearing');
+				
+				// Add welcome message back
+				this.addMessage('system', '👋 Welcome to AI Web Search Chat! Choose your research mode and start asking questions.');
+				
+				// Clear video context
+				this.clearVideoContext();
+				
+				// Focus input
+				const inputEl = this.containerEl.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+				if (inputEl) {
+					inputEl.focus();
+				}
+			}, 200); // Short delay for animation
+		} else {
+			// If no message container, just focus input
+			const inputEl = this.containerEl.querySelector('.gemini-chat-input') as HTMLTextAreaElement;
+			if (inputEl) {
+				inputEl.focus();
+			}
+		}
+	}
+
+	// Method to check if provider has API key configured
+	checkApiKey(provider: 'gemini' | 'perplexity' | 'tavily' | 'exa'): boolean {
+		switch (provider) {
+			case 'gemini':
+				return !!this.plugin.settings.geminiApiKey;
+			case 'perplexity':
+				return !!this.plugin.settings.perplexityApiKey;
+			case 'tavily':
+				return !!this.plugin.settings.tavilyApiKey;
+			case 'exa':
+				return !!this.plugin.settings.exaApiKey;
+			default:
+				return false;
+		}
+	}
+
+	// Add markdown rendering method
+	renderMarkdownContent(container: HTMLElement, content: string) {
+		container.empty();
+		
+		// Simple markdown parsing for common elements
+		const lines = content.split('\n');
+		let currentElement: HTMLElement = container;
+		let inCodeBlock = false;
+		let codeBlockContent: string[] = [];
+		
+		lines.forEach(line => {
+			if (line.startsWith('```')) {
+				if (inCodeBlock) {
+					// End code block
+					const codeEl = currentElement.createEl('pre');
+					const code = codeEl.createEl('code');
+					code.textContent = codeBlockContent.join('\n');
+					codeBlockContent = [];
+					inCodeBlock = false;
+				} else {
+					// Start code block
+					inCodeBlock = true;
+				}
+			} else if (inCodeBlock) {
+				codeBlockContent.push(line);
+			} else if (line.startsWith('### ')) {
+				currentElement = container;
+				const h3 = currentElement.createEl('h3');
+				this.parseInlineMarkdown(h3, line.replace('### ', ''));
+			} else if (line.startsWith('## ')) {
+				currentElement = container;
+				const h2 = currentElement.createEl('h2');
+				this.parseInlineMarkdown(h2, line.replace('## ', ''));
+			} else if (line.startsWith('# ')) {
+				currentElement = container;
+				const h1 = currentElement.createEl('h1');
+				this.parseInlineMarkdown(h1, line.replace('# ', ''));
+			} else if (line.startsWith('- ') || line.startsWith('* ')) {
+				let ul = currentElement.querySelector('ul:last-child');
+				if (!ul) {
+					ul = currentElement.createEl('ul');
+				}
+				const li = ul.createEl('li');
+				this.parseInlineMarkdown(li, line.replace(/^[*-] /, ''));
+			} else if (line.startsWith('**Sources:**') || line.startsWith('--- ')) {
+				currentElement = container;
+				const hr = currentElement.createEl('hr');
+			} else if (line.trim() === '') {
+				currentElement = container;
+				currentElement.createEl('br');
+			} else {
+				currentElement = container;
+				const p = currentElement.createEl('p');
+				this.parseInlineMarkdown(p, line);
+			}
+		});
+	}
+
+	// Parse inline markdown (bold, italic, links, code)
+	parseInlineMarkdown(element: HTMLElement, text: string) {
+		// Handle bold, italic, code, and enhanced clickable links
+		let html = text;
+		
+		// Bold **text**
+		html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+		
+		// Italic *text*
+		html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+		
+		// Inline code `text`
+		html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+		
+		// Enhanced Links [text](url) - make them actually clickable with external link styling
+		html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="external-link">$1 🔗</a>');
+		
+		// Auto-detect bare URLs and make them clickable
+		html = html.replace(/(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1 🔗</a>');
+		
+		// Handle citation links [1], [2], etc. - make them scroll to sources section
+		html = html.replace(/\[(\d+)\]/g, '<a href="#citation-$1" class="citation-link" onclick="this.closest(\'.message-content\').querySelector(\'h4:contains(Sources), strong:contains(Sources)\')?.scrollIntoView({behavior: \'smooth\', block: \'center\'})">[$1]</a>');
+		
+		element.innerHTML = html;
+		
+		// Add click handlers for citation links to scroll to sources
+		const citationLinks = element.querySelectorAll('.citation-link');
+		citationLinks.forEach(link => {
+			link.addEventListener('click', (e) => {
+				e.preventDefault();
+				const messageContent = link.closest('.message-content');
+				const sourcesSection = messageContent?.querySelector('h4, strong');
+				if (sourcesSection) {
+					sourcesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				}
+			});
+		});
+	}
+
+	async onClose() {
+		// Clean up
+	}
+}
+
+// Enhanced Main Plugin Class
+export default class GeminiWebSearchPlugin extends Plugin {
+	settings!: GeminiWebSearchSettings;
+
+	async onload() {
+		const logger = PluginLogger.getInstance();
+		const monitor = PerformanceMonitor.getInstance();
+		const loadTimer = 'plugin-load';
+		
+		try {
+			logger.info('Plugin loading started');
+			monitor.startTimer(loadTimer);
+			
+			await this.loadSettings();
+
+			// Register chat view
+			this.registerView(
+				CHAT_VIEW_TYPE,
+				(leaf) => new GeminiChatView(leaf, this)
+			);
+
+			// Add ribbon icon for chat
+			this.addRibbonIcon('message-circle', 'Open AI Web Search Chat', () => {
+				this.activateView();
+			});
+
+			// Keep existing text selection commands
+			this.addCommand({
+				id: 'gemini-web-search-selection',
+				name: 'AI Web Search: Search selected text',
+				editorCallback: (editor: Editor, ctx) => {
+					const selection = editor.getSelection();
+					if (selection) {
+						this.performWebSearchCommand(selection);
+					} else {
+						new Notice('Please select some text first');
+					}
+				}
+			});
+
+			this.addCommand({
+				id: 'gemini-web-search-prompt',
+				name: 'AI Web Search: Custom query',
+				editorCallback: (editor: Editor, ctx) => {
+					const selection = editor.getSelection();
+					const modal = new SearchModal(this.app, (query) => {
+						this.performWebSearchCommand(query);
+					});
+					if (selection) {
+						modal.setDefaultQuery(selection);
+					}
+					modal.open();
+				}
+			});
+
+			this.addCommand({
+				id: 'gemini-open-chat',
+				name: 'AI Web Search: Open Chat Panel',
+				callback: () => {
+					this.activateView();
+				}
+			});
+
+			// Add command for new chat
+			this.addCommand({
+				id: 'gemini-new-chat',
+				name: 'AI Web Search: Start New Chat',
+				callback: () => {
+					const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+					if (chatView) {
+						chatView.clearChat();
+					} else {
+						this.activateView();
+					}
+				}
+			});
+
+			this.addSettingTab(new GeminiSettingTab(this.app, this));
+			
+			const loadDuration = monitor.endTimer(loadTimer);
+			logger.info(`Plugin loaded successfully in ${loadDuration}ms`);
+			
+		} catch (error) {
+			monitor.endTimer(loadTimer);
+			logger.error('Plugin load failed', error);
+			new Notice('AI Web Search Plugin failed to load. Check console for details.');
+		}
+	}
+
+	async activateView() {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(CHAT_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			// If view already exists, activate it
+			leaf = leaves[0];
+		} else {
+			// Create new view in right sidebar
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({ type: CHAT_VIEW_TYPE, active: true });
+		}
+
+		// Reveal and focus the view
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
+	async performWebSearchCommand(query: string) {
+		try {
+			const result = await this.performWebSearch(query);
+			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			
+			if (activeView) {
+				const editor = activeView.editor;
+				const cursor = editor.getCursor();
+				
+				if (this.settings.insertMode === 'replace') {
+					const selection = editor.getSelection();
+					if (selection) {
+						editor.replaceSelection(`\n\n${result}\n\n`);
+					} else {
+						editor.replaceRange(`\n\n${result}\n\n`, cursor);
+					}
+				} else {
+					editor.replaceRange(`\n\n${result}\n\n`, cursor);
+				}
+				
+				new Notice('Web search result inserted');
+			} else {
+				new Notice('No active note to insert result');
+			}
+		} catch (error) {
+			new Notice(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async performWebSearch(query: string): Promise<string> {
+		const logger = PluginLogger.getInstance();
+		const monitor = PerformanceMonitor.getInstance();
+		const operationId = `web-search-${this.settings.provider}-${Date.now()}`;
+		
+		try {
+			monitor.startTimer(operationId);
+			logger.debug('Starting web search', { 
+				provider: this.settings.provider, 
+				query: InputValidator.sanitizeInput(query).substring(0, 100) + '...'
+			});
+			
+			// Validate inputs
+			if (!InputValidator.validateQuery(query)) {
+				throw new Error('Invalid search query provided');
+			}
+			
+			if (!InputValidator.validateProvider(this.settings.provider)) {
+				throw new Error(`Invalid provider: ${this.settings.provider}`);
+			}
+			
+			let result: string;
+			
+			switch (this.settings.provider) {
+				case 'gemini':
+					result = await this.searchWithGemini(query);
+					break;
+				case 'perplexity':
+					result = await this.searchWithPerplexity(query);
+					break;
+				case 'tavily':
+					result = await this.searchWithTavily(query);
+					break;
+				case 'exa':
+					result = await this.searchWithExa(query);
+					break;
+				default:
+					throw new Error(`Invalid provider: ${this.settings.provider}`);
+			}
+			
+			const duration = monitor.endTimer(operationId);
+			monitor.logMetrics('web-search', duration, {
+				provider: this.settings.provider,
+				queryLength: query.length,
+				resultLength: result.length
+			});
+			
+			return result;
+		} catch (error) {
+			monitor.endTimer(operationId);
+			logger.error('Web search failed', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			return `Search failed for: "${query}"\n\nError: ${errorMessage}\n\nPlease check your API configuration and try again.`;
+		}
+	}
+
+	async performChatWithContext(message: string, chatHistory: Array<{role: string, content: string}>): Promise<string> {
+		const logger = PluginLogger.getInstance();
+		const monitor = PerformanceMonitor.getInstance();
+		const operationId = `chat-context-${this.settings.provider}-${Date.now()}`;
+		
+		try {
+			monitor.startTimer(operationId);
+			logger.debug('Starting chat with context', { 
+				provider: this.settings.provider, 
+				historyLength: chatHistory.length,
+				messageLength: message.length
+			});
+			
+			// Currently only supporting Gemini for chat mode
+			if (this.settings.provider !== 'gemini') {
+				throw new Error('Chat mode currently only supports Gemini provider');
+			}
+			
+			const result = await this.chatWithGemini(message, chatHistory);
+			
+			const duration = monitor.endTimer(operationId);
+			monitor.logMetrics('chat-context', duration, {
+				provider: this.settings.provider,
+				historyLength: chatHistory.length,
+				messageLength: message.length,
+				resultLength: result.length
+			});
+			
+			return result;
+		} catch (error) {
+			monitor.endTimer(operationId);
+			logger.error('Chat with context failed', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			return `Chat failed: ${errorMessage}\n\nPlease check your API configuration and try again.`;
+		}
+	}
+
+	async chatWithGemini(message: string, chatHistory: Array<{role: string, content: string}>): Promise<string> {
+		const logger = PluginLogger.getInstance();
+		
+		try {
+			logger.debug('Starting Gemini chat', { 
+				messageLength: message.length,
+				historyLength: chatHistory.length 
+			});
+			
+			// Validate API key
+			if (!InputValidator.validateApiKey(this.settings.geminiApiKey)) {
+				throw new Error('Gemini API key not configured or invalid');
+			}
+
+			// Build conversation history
+			const contents = chatHistory.map(msg => ({
+				role: msg.role === 'user' ? 'user' : 'model',
+				parts: [{ text: msg.content }]
+			}));
+
+			// Add current message
+			contents.push({
+				role: 'user',
+				parts: [{ text: message }]
+			});
+
+			const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
+
+			const requestBody = {
+				contents: contents,
+				generationConfig: {
+					temperature: 0.7,
+					topP: 0.8,
+					topK: 40,
+					maxOutputTokens: 2048
+				}
+			};
+
+			const response = await requestUrl({
+				url: apiUrl,
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(requestBody)
+			});
+
+			const responseData = response.json;
+			const candidate = responseData.candidates?.[0];
+			
+			if (!candidate) {
+				throw new Error('No response from Gemini');
+			}
+
+			return candidate.content.parts[0].text;
+		} catch (error) {
+			logger.error('Gemini chat failed', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			throw new Error(`Gemini chat failed: ${errorMessage}`);
+		}
+	}
+
+	async searchWithGemini(query: string): Promise<string> {
+		const logger = PluginLogger.getInstance();
+		const monitor = PerformanceMonitor.getInstance();
+		const operationId = `gemini-search-${Date.now()}`;
+		
+		try {
+			monitor.startTimer(operationId);
+			logger.debug('Starting Gemini search', { queryLength: query.length });
+			
+			// Validate API key
+			if (!InputValidator.validateApiKey(this.settings.geminiApiKey)) {
+				throw new Error('Gemini API key not configured or invalid');
+			}
+
+			// Get current research mode from chat view
+			const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+			const researchMode = chatView?.currentResearchMode;
+
+			// Get research-mode-specific parameters with validation
+			let geminiParams = this.settings.researchModeConfigs.comprehensive.geminiParams; // default
+			if (researchMode && InputValidator.validateResearchMode(researchMode.id)) {
+				switch (researchMode.id) {
+					case 'quick':
+						geminiParams = this.settings.researchModeConfigs.quick.geminiParams;
+						break;
+					case 'comprehensive':
+						geminiParams = this.settings.researchModeConfigs.comprehensive.geminiParams;
+						break;
+					case 'deep':
+						geminiParams = this.settings.researchModeConfigs.deep.geminiParams;
+						break;
+					case 'reasoning':
+						geminiParams = this.settings.researchModeConfigs.reasoning.geminiParams;
+						break;
+					case 'youtube':
+						geminiParams = this.settings.researchModeConfigs.youtube.geminiParams;
+						break;
+				}
+			}
+
+			// Customize prompt based on research mode or custom prompts
+			let enhancedPrompt = query;
+			if (this.settings.enableCustomPrompts && researchMode) {
+				switch (researchMode.id) {
+					case 'quick':
+						enhancedPrompt = this.settings.quickPrompt.replace('{query}', query);
+						break;
+					case 'comprehensive':
+						enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
+						break;
+					case 'deep':
+						enhancedPrompt = this.settings.deepPrompt.replace('{query}', query);
+						break;
+					case 'reasoning':
+						enhancedPrompt = this.settings.reasoningPrompt.replace('{query}', query);
+						break;
+					case 'youtube':
+						enhancedPrompt = `Analyze this YouTube video and provide a comprehensive summary and insights: ${query}`;
+						break;
+					default:
+						enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
+				}
+			} else if (researchMode) {
+				// Use improved default prompts
+				switch (researchMode.id) {
+					case 'quick':
+						enhancedPrompt = `Provide a quick and accurate response to: "${query}". Focus on the 2-3 most important points in 2-3 sentences maximum.`;
+						break;
+					case 'comprehensive':
+						enhancedPrompt = `Provide a comprehensive analysis of: "${query}". Include key aspects, context, examples, and practical implications in 400-600 words.`;
+						break;
+					case 'deep':
+						enhancedPrompt = `Conduct an in-depth research analysis of: "${query}". Include foundation analysis, current landscape, multiple perspectives, and future implications in 800-1200 words.`;
+						break;
+					case 'reasoning':
+						enhancedPrompt = `Apply logical reasoning to analyze: "${query}". Break down the problem, evaluate evidence, consider alternatives, and provide a structured conclusion with confidence levels.`;
+						break;
+					case 'youtube':
+						enhancedPrompt = `Analyze this YouTube video and provide comprehensive documentation: "${query}". Include content breakdown, key insights, credibility assessment, and practical applications.`;
+						break;
+					default:
+						enhancedPrompt = `Please provide comprehensive analysis on: "${query}" with accurate information and reliable sources.`;
+				}
+			}
+
+			const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`;
+
+			const requestBody = {
+				contents: [{
+					parts: [{ text: enhancedPrompt }]
+				}],
+				generationConfig: {
+					temperature: geminiParams.temperature,
+					topP: geminiParams.topP,
+					topK: geminiParams.topK,
+					maxOutputTokens: geminiParams.maxOutputTokens
+				}
+			};
+
+			const response = await requestUrl({
+				url: apiUrl,
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(requestBody)
+			});
+
+			const responseData = response.json;
+			const candidate = responseData.candidates?.[0];
+			
+			if (!candidate) {
+				throw new Error('No response from Gemini');
+			}
+
+			let result = candidate.content.parts[0].text;
+
+			// Add sources if available
+			if (candidate.groundingMetadata?.groundingChunks) {
+				result += "\n\n--- \n**Sources:**\n";
+				const sources = new Set<string>();
+
+				candidate.groundingMetadata.groundingChunks.forEach((chunk: any) => {
+					if (chunk.web?.uri) {
+						sources.add(`- [${chunk.web.title || 'Source'}](${chunk.web.uri})`);
+					}
+				});
+
+				result += Array.from(sources).join('\n');
+			}
+
+			const duration = monitor.endTimer(operationId);
+			monitor.logMetrics('gemini-search', duration, {
+				queryLength: query.length,
+				resultLength: result.length,
+				researchMode: researchMode?.id
+			});
+
+			return result;
+		} catch (error) {
+			monitor.endTimer(operationId);
+			logger.error('Gemini search failed', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			throw new Error(`Gemini search failed: ${errorMessage}`);
+		}
+	}
+
+	async searchWithPerplexity(query: string): Promise<string> {
+		if (!this.settings.perplexityApiKey) {
+			throw new Error('Perplexity API key not configured');
+		}
+
+		// Get current research mode for parameters
+		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+		const researchMode = chatView?.currentResearchMode;
+		
+		let perplexityParams = this.settings.researchModeConfigs.comprehensive.perplexityParams;
+		if (researchMode) {
+			switch (researchMode.id) {
+				case 'quick':
+					perplexityParams = this.settings.researchModeConfigs.quick.perplexityParams;
+					break;
+				case 'comprehensive':
+					perplexityParams = this.settings.researchModeConfigs.comprehensive.perplexityParams;
+					break;
+				case 'deep':
+					perplexityParams = this.settings.researchModeConfigs.deep.perplexityParams;
+					break;
+				case 'reasoning':
+					perplexityParams = this.settings.researchModeConfigs.reasoning.perplexityParams;
+					break;
+			}
+		}
+
+		try {
+			const response = await requestUrl({
+				url: 'https://api.perplexity.ai/chat/completions',
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.perplexityApiKey}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					model: this.settings.perplexityModel,
+					messages: [
+						{
+							role: "user",
+							content: query
+						}
+					],
+					temperature: perplexityParams.temperature,
+					max_tokens: perplexityParams.max_tokens,
+					top_p: perplexityParams.top_p,
+					search_domain_filter: perplexityParams.search_domain_filter,
+					return_citations: perplexityParams.return_citations,
+					return_images: perplexityParams.return_images,
+					return_related_questions: perplexityParams.return_related_questions
+				})
+			});
+
+			const data = response.json;
+			
+			if (data.choices && data.choices[0] && data.choices[0].message) {
+				let result = data.choices[0].message.content;
+				
+				// Add citations if available
+				if (data.citations && data.citations.length > 0) {
+					result += "\n\n**Sources:**\n";
+					data.citations.forEach((citation: string, index: number) => {
+						result += `${index + 1}. ${citation}\n`;
+					});
+				}
+				
+				// Add related questions if available
+				if (data.related_questions && data.related_questions.length > 0) {
+					result += "\n\n**Related Questions:**\n";
+					data.related_questions.forEach((question: string) => {
+						result += `- ${question}\n`;
+					});
+				}
+				
+				return result;
+			} else {
+				throw new Error('No valid response from Perplexity API');
+			}
+		} catch (error) {
+			throw new Error(`Perplexity search failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async searchWithTavily(query: string): Promise<string> {
+		if (!this.settings.tavilyApiKey) {
+			throw new Error('Tavily API key not configured');
+		}
+
+		try {
+			const response = await requestUrl({
+				url: 'https://api.tavily.com/search',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					api_key: this.settings.tavilyApiKey,
+					query: query,
+					search_depth: "advanced",
+					include_answer: true,
+					include_images: this.settings.includeImages,
+					include_raw_content: false,
+					max_results: this.settings.maxResults
+				})
+			});
+
+			const data = response.json;
+			
+			if (data.answer) {
+				let result = `**Answer:** ${data.answer}\n\n`;
+				
+				if (data.results && data.results.length > 0) {
+					result += "**Sources:**\n";
+					data.results.forEach((item: any, index: number) => {
+						result += `${index + 1}. [${item.title}](${item.url}) - ${item.content.substring(0, 200)}...\n`;
+					});
+				}
+				
+				return result;
+			} else {
+				throw new Error('No valid response from Tavily API');
+			}
+		} catch (error) {
+			throw new Error(`Tavily search failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async searchWithExa(query: string): Promise<string> {
+		if (!this.settings.exaApiKey) {
+			throw new Error('Exa API key not configured');
+		}
+
+		// Get current research mode for search type
+		const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view as GeminiChatView;
+		const researchMode = chatView?.currentResearchMode;
+		const searchType = researchMode?.exaSearchType || this.settings.exaSearchType;
+
+		try {
+			const response = await requestUrl({
+				url: 'https://api.exa.ai/search',
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.exaApiKey}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					query: query,
+					type: searchType,
+					useAutoprompt: true,
+					numResults: this.settings.maxResults,
+					includeDomains: this.settings.exaIncludeDomains.length > 0 ? this.settings.exaIncludeDomains : undefined,
+					excludeDomains: this.settings.exaExcludeDomains.length > 0 ? this.settings.exaExcludeDomains : undefined,
+					startCrawlDate: this.settings.exaStartDate || undefined,
+					endCrawlDate: this.settings.exaEndDate || undefined,
+					contents: {
+						text: this.settings.exaGetText,
+						highlights: this.settings.exaGetHighlights,
+						summary: this.settings.exaGetSummary
+					}
+				})
+			});
+
+			const data = response.json;
+			
+			if (data.results && data.results.length > 0) {
+				let result = `**Search Results for "${query}":**\n\n`;
+				
+				data.results.forEach((item: any, index: number) => {
+					result += `### ${index + 1}. [${item.title}](${item.url})\n`;
+					result += `**Score:** ${item.score.toFixed(3)} | **Published:** ${item.publishedDate || 'Unknown'}\n\n`;
+					
+					if (item.summary) {
+						result += `**Summary:** ${item.summary}\n\n`;
+					}
+					
+					if (item.text) {
+						result += `**Content:** ${item.text.substring(0, 300)}...\n\n`;
+					}
+					
+					if (item.highlights && item.highlights.length > 0) {
+						result += `**Key Highlights:**\n`;
+						item.highlights.forEach((highlight: string) => {
+							result += `- ${highlight}\n`;
+						});
+						result += '\n';
+					}
+					
+					result += '---\n\n';
+				});
+				
+				return result;
+			} else {
+				throw new Error('No results found from Exa API');
+			}
+		} catch (error) {
+			throw new Error(`Exa search failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+
+	onunload() {
+		const logger = PluginLogger.getInstance();
+		logger.info('Plugin unloaded');
+	}
+}
+
+// Search Modal for custom queries
+class SearchModal extends Modal {
+	private query: string = '';
+	private onSubmit: (query: string) => void;
+
+	constructor(app: App, onSubmit: (query: string) => void) {
+		super(app);
+		this.onSubmit = onSubmit;
+	}
+
+	setDefaultQuery(query: string) {
+		this.query = query;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.createEl('h2', { text: 'AI Web Search' });
+
+		const inputEl = contentEl.createEl('input', {
+			type: 'text',
+			placeholder: 'Enter your search query...'
+		});
+		inputEl.value = this.query;
+		inputEl.focus();
+
+		const buttonEl = contentEl.createEl('button', { text: 'Search' });
+		
+		const submit = () => {
+			const query = inputEl.value.trim();
+			if (query) {
+				this.onSubmit(query);
+				this.close();
+			}
+		};
+
+		buttonEl.onclick = submit;
+		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Enter') {
+				submit();
+			}
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+// Enhanced Settings Tab
+class GeminiSettingTab extends PluginSettingTab {
+	plugin: GeminiWebSearchPlugin;
+
+	constructor(app: App, plugin: GeminiWebSearchPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+
+		// Main container with enhanced styling
+		const mainContainer = containerEl.createEl('div', { cls: 'gemini-settings-container' });
+
+		// Title section with gradient background
+		const titleSection = mainContainer.createEl('div', { cls: 'settings-title-section' });
+		titleSection.createEl('h1', { text: '🤖 AI Web Search Plugin' });
+		titleSection.createEl('p', { 
+			cls: 'settings-subtitle',
+			text: 'Advanced multi-provider AI search with research modes and YouTube analysis'
+		});
+
+		// Provider Selection Section
+		this.createProviderSection(mainContainer);
+
+		// Research Mode Configuration Section
+		this.createResearchModeSection(mainContainer);
+
+		// Chat Settings Section
+		this.createChatSettingsSection(mainContainer);
+
+		// Advanced Settings Section
+		this.createAdvancedSettingsSection(mainContainer);
+
+		// Custom Prompts Section
+		this.createCustomPromptsSection(mainContainer);
+
+		// UI Preferences Section
+		this.createUIPreferencesSection(mainContainer);
+	}
+
+	createProviderSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'🔌 Provider Configuration',
+			'Configure API keys and settings for different AI providers',
+			true // expanded by default
+		);
+
+		// Provider selector
+		new Setting(section)
+			.setName('Primary Provider')
+			.setDesc('Choose your primary AI provider for web searches')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini', 'Google Gemini')
+				.addOption('perplexity', 'Perplexity AI')
+				.addOption('tavily', 'Tavily Search')
+				.addOption('exa', 'Exa (Metaphor)')
+				.setValue(this.plugin.settings.provider)
+				.onChange(async (value: any) => {
+					this.plugin.settings.provider = value;
+					await this.plugin.saveSettings();
+					this.updateProviderInfo();
+				}));
+
+		// Provider tabs
+		const tabsContainer = section.createEl('div', { cls: 'provider-tabs' });
+		const contentContainer = section.createEl('div', { cls: 'provider-tabs-content' });
+
+		const providers = [
+			{ id: 'gemini', name: 'Gemini', key: 'geminiApiKey' },
+			{ id: 'perplexity', name: 'Perplexity', key: 'perplexityApiKey' },
+			{ id: 'tavily', name: 'Tavily', key: 'tavilyApiKey' },
+			{ id: 'exa', name: 'Exa', key: 'exaApiKey' }
+		];
+
+		providers.forEach((provider, index) => {
+			// Tab button
+			const tab = tabsContainer.createEl('button', {
+				cls: `provider-tab ${index === 0 ? 'active' : ''}`,
+				text: provider.name
+			});
+
+			// Tab content
+			const content = contentContainer.createEl('div', {
+				cls: `provider-tab-content ${index === 0 ? 'active' : ''}`
+			});
+
+			tab.onclick = () => {
+				// Update active tab
+				tabsContainer.querySelectorAll('.provider-tab').forEach(t => t.removeClass('active'));
+				contentContainer.querySelectorAll('.provider-tab-content').forEach(c => c.removeClass('active'));
+				tab.addClass('active');
+				content.addClass('active');
+			};
+
+			// API Key setting
+			new Setting(content)
+				.setName(`${provider.name} API Key`)
+				.setDesc(`Enter your ${provider.name} API key`)
+				.addText(text => text
+					.setPlaceholder('Enter API key...')
+					.setValue((this.plugin.settings as any)[provider.key])
+					.onChange(async (value) => {
+						(this.plugin.settings as any)[provider.key] = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// Provider-specific settings
+			if (provider.id === 'gemini') {
+				new Setting(content)
+					.setName('Gemini Model')
+					.setDesc('Choose the Gemini model for responses')
+					.addDropdown(dropdown => dropdown
+						.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Best quality)')
+						.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Balanced)')
+						.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Fastest)')
+						.setValue(this.plugin.settings.geminiModel)
+						.onChange(async (value) => {
+							this.plugin.settings.geminiModel = value;
+							await this.plugin.saveSettings();
+						}));
+			}
+
+			if (provider.id === 'perplexity') {
+				new Setting(content)
+					.setName('Perplexity Model')
+					.setDesc('Choose the Perplexity model for responses')
+					.addDropdown(dropdown => dropdown
+						.addOption('sonar', 'Sonar (Fast)')
+						.addOption('sonar-pro', 'Sonar Pro (Balanced)')
+						.addOption('sonar-reasoning', 'Sonar Reasoning')
+						.addOption('sonar-reasoning-pro', 'Sonar Reasoning Pro')
+						.addOption('sonar-deep-research', 'Sonar Deep Research')
+						.setValue(this.plugin.settings.perplexityModel)
+						.onChange(async (value) => {
+							this.plugin.settings.perplexityModel = value;
+							await this.plugin.saveSettings();
+						}));
+			}
+
+			// Provider info card
+			this.createProviderInfoCard(content, provider.id);
+		});
+	}
+
+	createProviderInfoCard(container: HTMLElement, providerId: string) {
+		const infoCard = container.createEl('div', { cls: 'provider-info-card' });
+		
+		const providerInfo = {
+			gemini: {
+				description: 'Google\'s most advanced AI model with multimodal capabilities',
+				features: ['Web search with grounding', 'YouTube video analysis', 'Code generation', 'Image analysis'],
+				pricing: 'Free tier available, pay-per-use',
+				strengths: 'Excellent for complex reasoning and multimodal tasks'
+			},
+			perplexity: {
+				description: 'AI-powered search engine with real-time web access',
+				features: ['Real-time web search', 'Citation tracking', 'Academic mode', 'Related questions'],
+				pricing: 'Free tier available, pro plans for more requests',
+				strengths: 'Best for current information and research with citations'
+			},
+			tavily: {
+				description: 'Search API optimized for AI applications',
+				features: ['Structured search results', 'Content summarization', 'Domain filtering', 'Image search'],
+				pricing: 'Pay-per-request pricing',
+				strengths: 'Reliable structured data for AI processing'
+			},
+			exa: {
+				description: 'Neural search engine built for AI applications',
+				features: ['Semantic search', 'Content embeddings', 'Domain expertise', 'Time filtering'],
+				pricing: 'Freemium model with usage limits',
+				strengths: 'Superior semantic understanding and content discovery'
+			}
+		};
+
+		const info = providerInfo[providerId as keyof typeof providerInfo];
+		if (!info) return;
+
+		const header = infoCard.createEl('div', { cls: 'provider-info-header' });
+		header.createEl('h4', { text: `About ${providerId.charAt(0).toUpperCase() + providerId.slice(1)}` });
+		
+		// Status indicator
+		const apiKey = (this.plugin.settings as any)[`${providerId}ApiKey`];
+		const status = infoCard.createEl('span', {
+			cls: `status-indicator ${apiKey ? 'connected' : 'disconnected'}`,
+			text: apiKey ? 'Connected' : 'Not Configured'
+		});
+
+		infoCard.createEl('p', { cls: 'provider-description', text: info.description });
+
+		const featuresList = infoCard.createEl('ul', { cls: 'provider-features' });
+		info.features.forEach(feature => {
+			featuresList.createEl('li', { text: feature });
+		});
+
+		const specs = infoCard.createEl('div', { cls: 'provider-specs' });
+		specs.createEl('span', { cls: 'spec-item', text: info.pricing });
+		specs.createEl('span', { cls: 'spec-item', text: info.strengths });
+	}
+
+	createResearchModeSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'🔬 Research Mode Configuration',
+			'Configure parameters for different research modes and AI models'
+		);
+
+		// Quick mode settings
+		const quickSection = section.createEl('div');
+		quickSection.createEl('h4', { text: '⚡ Quick Mode' });
+		
+		new Setting(quickSection)
+			.setName('Quick Mode Model')
+			.setDesc('Model used for quick research mode')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite')
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash')
+				.setValue(this.plugin.settings.researchModeModels.quick)
+				.onChange(async (value) => {
+					this.plugin.settings.researchModeModels.quick = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Comprehensive mode settings
+		const comprehensiveSection = section.createEl('div');
+		comprehensiveSection.createEl('h4', { text: '📚 Comprehensive Mode' });
+		
+		new Setting(comprehensiveSection)
+			.setName('Comprehensive Mode Model')
+			.setDesc('Model used for comprehensive research mode')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash')
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro')
+				.setValue(this.plugin.settings.researchModeModels.comprehensive)
+				.onChange(async (value) => {
+					this.plugin.settings.researchModeModels.comprehensive = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Deep mode settings
+		const deepSection = section.createEl('div');
+		deepSection.createEl('h4', { text: '🔍 Deep Mode' });
+		
+		new Setting(deepSection)
+			.setName('Deep Mode Model')
+			.setDesc('Model used for deep research mode')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro')
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash')
+				.setValue(this.plugin.settings.researchModeModels.deep)
+				.onChange(async (value) => {
+					this.plugin.settings.researchModeModels.deep = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// YouTube mode settings
+		const youtubeSection = section.createEl('div');
+		youtubeSection.createEl('h4', { text: '🎬 YouTube Mode' });
+		
+		new Setting(youtubeSection)
+			.setName('YouTube Mode Model')
+			.setDesc('Model used for YouTube video analysis')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro')
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash')
+				.setValue(this.plugin.settings.researchModeModels.youtube)
+				.onChange(async (value) => {
+					this.plugin.settings.researchModeModels.youtube = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	createChatSettingsSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'💬 Chat & Memory Settings',
+			'Configure chat behavior, context memory, and conversation management'
+		);
+
+		new Setting(section)
+			.setName('Enable Context Memory')
+			.setDesc('Remember previous messages in the conversation for better context')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.contextMemoryEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.contextMemoryEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Max Context Messages')
+			.setDesc('Maximum number of previous messages to remember')
+			.addSlider(slider => slider
+				.setLimits(1, 20, 1)
+				.setValue(this.plugin.settings.maxContextMessages)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.maxContextMessages = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Context Memory Strategy')
+			.setDesc('How to manage context when memory limit is reached')
+			.addDropdown(dropdown => dropdown
+				.addOption('recent', 'Keep Recent Messages')
+				.addOption('summary', 'Summarize Old Messages')
+				.addOption('token-limit', 'Token-based Limiting')
+				.setValue(this.plugin.settings.contextMemoryStrategy)
+				.onChange(async (value: any) => {
+					this.plugin.settings.contextMemoryStrategy = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Chat saving settings
+		new Setting(section)
+			.setName('Enable Chat Saving')
+			.setDesc('Automatically save chat conversations to notes')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.chatSaveEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.chatSaveEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Chat Folder Name')
+			.setDesc('Folder where chat conversations will be saved')
+			.addText(text => text
+				.setPlaceholder('AI Web Search Chats')
+				.setValue(this.plugin.settings.chatFolderName)
+				.onChange(async (value) => {
+					this.plugin.settings.chatFolderName = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Chat Note Template')
+			.setDesc('Format for chat note filenames')
+			.addDropdown(dropdown => dropdown
+				.addOption('timestamp-query', 'Timestamp - Query')
+				.addOption('query-timestamp', 'Query - Timestamp')
+				.addOption('query-only', 'Query Only')
+				.addOption('counter', 'Chat Counter')
+				.setValue(this.plugin.settings.chatNoteTemplate)
+				.onChange(async (value: any) => {
+					this.plugin.settings.chatNoteTemplate = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	createAdvancedSettingsSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'⚙️ Advanced Settings',
+			'Fine-tune search behavior and result formatting'
+		);
+
+		new Setting(section)
+			.setName('Insert Mode')
+			.setDesc('How to insert search results into your notes')
+			.addDropdown(dropdown => dropdown
+				.addOption('replace', 'Replace Selection')
+				.addOption('append', 'Append to Note')
+				.setValue(this.plugin.settings.insertMode)
+				.onChange(async (value: any) => {
+					this.plugin.settings.insertMode = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Max Results')
+			.setDesc('Maximum number of search results to return')
+			.addSlider(slider => slider
+				.setLimits(1, 20, 1)
+				.setValue(this.plugin.settings.maxResults)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.maxResults = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Include Images')
+			.setDesc('Include images in search results when supported')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.includeImages)
+				.onChange(async (value) => {
+					this.plugin.settings.includeImages = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	createCustomPromptsSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'✍️ Custom Prompts',
+			'Customize AI prompts for different research modes'
+		);
+
+		new Setting(section)
+			.setName('Enable Custom Prompts')
+			.setDesc('Use custom prompts instead of default ones')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCustomPrompts)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCustomPrompts = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide prompt editors
+				}));
+
+		if (this.plugin.settings.enableCustomPrompts) {
+			// Quick prompt
+			new Setting(section)
+				.setName('Quick Mode Prompt')
+				.setDesc('Custom prompt for quick research mode. Use {query} as placeholder.')
+				.addTextArea(text => text
+					.setPlaceholder('Enter custom prompt for quick mode...')
+					.setValue(this.plugin.settings.quickPrompt)
+					.onChange(async (value) => {
+						this.plugin.settings.quickPrompt = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// Comprehensive prompt
+			new Setting(section)
+				.setName('Comprehensive Mode Prompt')
+				.setDesc('Custom prompt for comprehensive research mode. Use {query} as placeholder.')
+				.addTextArea(text => text
+					.setPlaceholder('Enter custom prompt for comprehensive mode...')
+					.setValue(this.plugin.settings.comprehensivePrompt)
+					.onChange(async (value) => {
+						this.plugin.settings.comprehensivePrompt = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// Deep prompt
+			new Setting(section)
+				.setName('Deep Mode Prompt')
+				.setDesc('Custom prompt for deep research mode. Use {query} as placeholder.')
+				.addTextArea(text => text
+					.setPlaceholder('Enter custom prompt for deep mode...')
+					.setValue(this.plugin.settings.deepPrompt)
+					.onChange(async (value) => {
+						this.plugin.settings.deepPrompt = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// Reasoning prompt
+			new Setting(section)
+				.setName('Reasoning Mode Prompt')
+				.setDesc('Custom prompt for reasoning mode. Use {query} as placeholder.')
+				.addTextArea(text => text
+					.setPlaceholder('Enter custom prompt for reasoning mode...')
+					.setValue(this.plugin.settings.reasoningPrompt)
+					.onChange(async (value) => {
+						this.plugin.settings.reasoningPrompt = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// YouTube prompt
+			new Setting(section)
+				.setName('YouTube Mode Prompt')
+				.setDesc('Custom prompt for YouTube analysis. Use {url} as placeholder.')
+				.addTextArea(text => text
+					.setPlaceholder('Enter custom prompt for YouTube mode...')
+					.setValue(this.plugin.settings.youtubePrompt)
+					.onChange(async (value) => {
+						this.plugin.settings.youtubePrompt = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+	}
+
+	createUIPreferencesSection(container: HTMLElement) {
+		const section = this.createCollapsibleSection(
+			container,
+			'🎨 UI Preferences',
+			'Customize the user interface and user experience'
+		);
+
+		new Setting(section)
+			.setName('Show Advanced Settings')
+			.setDesc('Display advanced configuration options in the UI')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.uiPreferences.showAdvancedSettings)
+				.onChange(async (value) => {
+					this.plugin.settings.uiPreferences.showAdvancedSettings = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Show Parameter Tooltips')
+			.setDesc('Display helpful tooltips for configuration parameters')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.uiPreferences.showParameterTooltips)
+				.onChange(async (value) => {
+					this.plugin.settings.uiPreferences.showParameterTooltips = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Auto-save Settings')
+			.setDesc('Automatically save settings when changed')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.uiPreferences.autoSaveSettings)
+				.onChange(async (value) => {
+					this.plugin.settings.uiPreferences.autoSaveSettings = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Show Performance Metrics')
+			.setDesc('Display performance metrics in the console')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.uiPreferences.showPerformanceMetrics)
+				.onChange(async (value) => {
+					this.plugin.settings.uiPreferences.showPerformanceMetrics = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(section)
+			.setName('Compact Mode')
+			.setDesc('Use a more compact interface layout')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.uiPreferences.compactMode)
+				.onChange(async (value) => {
+					this.plugin.settings.uiPreferences.compactMode = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	createCollapsibleSection(container: HTMLElement, title: string, description: string, expanded: boolean = false): HTMLElement {
+		const section = container.createEl('div', { cls: 'setting-section' });
+		
+		const header = section.createEl('div', { 
+			cls: `setting-section-header ${expanded ? 'expanded' : ''}`
+		});
+		
+		const toggle = header.createEl('span', { 
+			cls: 'setting-section-toggle',
+			text: expanded ? '▼' : '▶'
+		});
+		
+		header.createEl('h3', { cls: 'setting-section-title', text: title });
+		header.createEl('p', { cls: 'setting-section-description', text: description });
+		
+		const content = section.createEl('div', { 
+			cls: `setting-section-content ${expanded ? 'expanded' : ''}`
+		});
+		
+		header.onclick = () => {
+			const isExpanded = content.hasClass('expanded');
+			if (isExpanded) {
+				content.removeClass('expanded');
+				header.removeClass('expanded');
+				toggle.textContent = '▶';
+			} else {
+				content.addClass('expanded');
+				header.addClass('expanded');
+				toggle.textContent = '▼';
+			}
+		};
+		
+		return content;
+	}
+
+	updateProviderInfo() {
+		// Update any provider-specific UI elements
+		this.display();
+	}
+}
