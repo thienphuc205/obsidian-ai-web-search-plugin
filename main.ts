@@ -1137,7 +1137,7 @@ export default class GeminiWebSearchPlugin extends Plugin {
 					enhancedPrompt = this.settings.reasoningPrompt.replace('{query}', query);
 					break;
 				case 'youtube':
-					enhancedPrompt = `Analyze this YouTube video and provide a comprehensive summary and insights: ${query}`;
+					enhancedPrompt = this.settings.youtubePrompt.replace('{query}', query).replace('{url}', query);
 					break;
 				default:
 					enhancedPrompt = this.settings.comprehensivePrompt.replace('{query}', query);
@@ -2501,6 +2501,196 @@ For additional context and verification:
 			outline: 2px solid var(--interactive-accent);
 			outline-offset: 2px;
 		}
+		
+		/* Custom Prompts Section Styling */
+		.custom-prompts-section {
+			margin: var(--size-4-3) 0;
+			padding: var(--size-4-3);
+			background: var(--background-secondary);
+			border-radius: var(--radius-m);
+			border: 1px solid var(--background-modifier-border);
+		}
+		
+		.custom-prompts-section h4 {
+			margin: 0 0 var(--size-4-2) 0;
+			color: var(--text-normal);
+			font-weight: var(--font-weight-bold);
+		}
+		
+		.prompt-controls {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: var(--size-2-2);
+			padding: var(--size-2-2) 0;
+			border-top: 1px solid var(--background-modifier-border);
+		}
+		
+		.prompt-char-count {
+			font-size: var(--font-ui-smaller);
+			color: var(--text-muted);
+		}
+		
+		.prompt-preview-btn {
+			padding: var(--size-2-1) var(--size-2-3);
+			background: var(--interactive-normal);
+			border: 1px solid var(--background-modifier-border);
+			border-radius: var(--radius-s);
+			color: var(--text-normal);
+			font-size: var(--font-ui-small);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+		
+		.prompt-preview-btn:hover {
+			background: var(--interactive-hover);
+		}
+		
+		.prompt-preview-section {
+			margin-top: var(--size-4-3);
+			padding-top: var(--size-4-2);
+			border-top: 1px solid var(--background-modifier-border);
+		}
+		
+		.prompt-preview-section h5 {
+			margin: 0 0 var(--size-2-3) 0;
+			color: var(--text-normal);
+		}
+		
+		.prompt-preview-section button {
+			margin-right: var(--size-2-3);
+			margin-bottom: var(--size-2-2);
+		}
+		
+		.prompt-buttons {
+			display: flex;
+			flex-wrap: wrap;
+			gap: var(--size-2-2);
+		}
+		
+		.prompt-export-btn,
+		.prompt-import-btn {
+			padding: var(--size-2-1) var(--size-2-3);
+			background: var(--interactive-normal);
+			border: 1px solid var(--background-modifier-border);
+			border-radius: var(--radius-s);
+			color: var(--text-normal);
+			font-size: var(--font-ui-small);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+		
+		.prompt-export-btn:hover,
+		.prompt-import-btn:hover {
+			background: var(--interactive-hover);
+		}
+		
+		.validation-results {
+			margin-top: var(--size-2-3);
+			padding: var(--size-2-3);
+			background: var(--background-primary);
+			border-radius: var(--radius-s);
+			border: 1px solid var(--background-modifier-border);
+		}
+		
+		.validation-item {
+			margin: var(--size-2-1) 0;
+			font-size: var(--font-ui-small);
+			font-family: var(--font-monospace);
+		}
+		
+		.validation-summary {
+			margin-top: var(--size-2-3);
+			padding: var(--size-2-2);
+			background: var(--background-modifier-form-field);
+			border-radius: var(--radius-s);
+			font-size: var(--font-ui-medium);
+		}
+		
+		.validation-tips {
+			margin-top: var(--size-2-3);
+			padding: var(--size-2-3);
+			background: var(--background-secondary);
+			border-radius: var(--radius-s);
+			border-left: 3px solid var(--interactive-accent);
+		}
+		
+		.validation-tips h6 {
+			margin: 0 0 var(--size-2-2) 0;
+			color: var(--text-normal);
+			font-size: var(--font-ui-small);
+		}
+		
+		.validation-tips ul {
+			margin: 0;
+			padding-left: var(--size-4-2);
+		}
+		
+		.validation-tips li {
+			margin: var(--size-2-1) 0;
+			font-size: var(--font-ui-small);
+			line-height: var(--line-height-normal);
+		}
+		
+		.validation-tips code {
+			background: var(--background-modifier-border);
+			padding: var(--size-2-1);
+			border-radius: var(--radius-s);
+			font-family: var(--font-monospace);
+		}
+		
+		.validation-success {
+			margin-top: var(--size-2-3);
+			font-weight: var(--font-weight-medium);
+		}
+		
+		.prompt-preview-content {
+			line-height: var(--line-height-normal);
+		}
+		
+		.prompt-info {
+			margin-top: var(--size-2-3);
+			font-size: var(--font-ui-small);
+		}
+		
+		.prompt-warning {
+			font-weight: var(--font-weight-medium);
+		}
+		
+		/* Template selector styling */
+		.custom-prompts-section .setting-item:first-of-type {
+			background: var(--background-modifier-form-field);
+			padding: var(--size-2-3);
+			border-radius: var(--radius-s);
+			margin-bottom: var(--size-4-2);
+		}
+		
+		/* Textarea styling for prompts */
+		.custom-prompts-section textarea {
+			font-family: var(--font-monospace) !important;
+			font-size: var(--font-ui-small) !important;
+			line-height: 1.4 !important;
+			background: var(--background-primary) !important;
+		}
+		
+		/* Responsive design for custom prompts */
+		@media (max-width: 768px) {
+			.prompt-controls {
+				flex-direction: column;
+				align-items: stretch;
+				gap: var(--size-2-2);
+			}
+			
+			.prompt-preview-btn {
+				width: 100%;
+				text-align: center;
+			}
+			
+			.prompt-preview-section button {
+				width: 100%;
+				margin-right: 0;
+			}
+		}
 		`;
 		
 		// Inject the CSS
@@ -3769,6 +3959,26 @@ class GeminiSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Custom Prompts Section - Progressive Disclosure
+		containerEl.createEl('h3', { text: 'Custom Prompts' });
+		
+		// Enable Custom Prompts Toggle
+		new Setting(containerEl)
+			.setName('Enable Custom Prompts')
+			.setDesc('Use your own custom prompts instead of built-in optimized prompts')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCustomPrompts)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCustomPrompts = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide custom prompt settings
+				}));
+
+		// Show custom prompt settings if enabled
+		if (this.plugin.settings.enableCustomPrompts) {
+			this.addCustomPromptsSettings(containerEl);
+		}
+
 		// Advanced Settings Toggle
 		new Setting(containerEl)
 			.setName('Show Advanced Settings')
@@ -4698,5 +4908,901 @@ class GeminiSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+	}
+
+	addCustomPromptsSettings(containerEl: HTMLElement) {
+		const customPromptsContainer = containerEl.createDiv('custom-prompts-section');
+		customPromptsContainer.createEl('h4', { text: 'Custom Prompt Templates' });
+		
+		// Help text
+		const helpText = customPromptsContainer.createEl('p', { cls: 'settings-help-text' });
+		helpText.innerHTML = `
+			🎯 <strong>Progressive Disclosure Design:</strong><br>
+			• <strong>Beginners:</strong> Use built-in optimized prompts (recommended)<br>
+			• <strong>Intermediate:</strong> Choose preset templates for specific use cases<br>
+			• <strong>Advanced:</strong> Create fully custom prompts with {query} placeholders<br><br>
+			💡 All prompts support Obsidian-compatible markdown formatting and citations.
+		`;
+		
+		// Template selector
+		new Setting(customPromptsContainer)
+			.setName('Prompt Template')
+			.setDesc('Choose a preset template or create custom prompts')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('built-in', '🏠 Built-in Optimized (Recommended)')
+					.addOption('academic', '🎓 Academic Research Template')
+					.addOption('business', '💼 Business Analysis Template')
+					.addOption('creative', '🎨 Creative Writing Template')
+					.addOption('technical', '⚙️ Technical Documentation Template')
+					.addOption('custom', '🛠️ Custom (Manual Configuration)')
+					.setValue('built-in')
+					.onChange(async (value) => {
+						if (value !== 'custom' && value !== 'built-in') {
+							const confirmed = confirm(`Load ${value} template? This will overwrite any existing custom prompts.`);
+							if (confirmed) {
+								await this.loadPromptTemplate(value);
+								this.display(); // Refresh to show updated prompts
+							}
+						}
+					});
+			});
+
+		// Individual prompt editors
+		this.addPromptEditor(customPromptsContainer, 'Quick Mode', 'quickPrompt', 
+			'Fast, concise responses (250-350 words, 2-3 key points)');
+		this.addPromptEditor(customPromptsContainer, 'Comprehensive Mode', 'comprehensivePrompt', 
+			'Balanced analysis (600-800 words, structured approach)');
+		this.addPromptEditor(customPromptsContainer, 'Deep Mode', 'deepPrompt', 
+			'In-depth research (1000-1500 words, comprehensive analysis)');
+		this.addPromptEditor(customPromptsContainer, 'Reasoning Mode', 'reasoningPrompt', 
+			'Logical analysis with evidence evaluation and bias detection');
+		this.addPromptEditor(customPromptsContainer, 'YouTube Mode', 'youtubePrompt', 
+			'Video content analysis with timestamps and citations');
+
+		// Preview and validation section
+		const previewContainer = customPromptsContainer.createDiv('prompt-preview-section');
+		previewContainer.createEl('h5', { text: 'Prompt Validation & Management' });
+		
+		const buttonContainer = previewContainer.createEl('div', { cls: 'prompt-buttons' });
+		
+		const validationButton = buttonContainer.createEl('button', {
+			text: '🔍 Validate All Prompts',
+			cls: 'mod-cta'
+		});
+		
+		validationButton.addEventListener('click', () => {
+			this.validateAllPrompts(previewContainer);
+		});
+
+		// Reset to defaults button
+		const resetButton = buttonContainer.createEl('button', {
+			text: '🔄 Reset to Defaults',
+			cls: 'mod-warning'
+		});
+		
+		resetButton.addEventListener('click', async () => {
+			const confirmed = confirm('Reset all custom prompts to optimized default values? This cannot be undone.');
+			if (confirmed) {
+				await this.resetPromptsToDefaults();
+				this.display(); // Refresh settings
+			}
+		});
+
+		// Export/Import buttons for advanced users
+		const exportButton = buttonContainer.createEl('button', {
+			text: '📤 Export Prompts',
+			cls: 'prompt-export-btn'
+		});
+		
+		exportButton.addEventListener('click', () => {
+			this.exportPrompts();
+		});
+
+		const importButton = buttonContainer.createEl('button', {
+			text: '📥 Import Prompts',
+			cls: 'prompt-import-btn'
+		});
+		
+		importButton.addEventListener('click', () => {
+			this.importPrompts();
+		});
+	}
+
+	addPromptEditor(container: HTMLElement, name: string, settingKey: keyof GeminiWebSearchSettings, description: string) {
+		const setting = new Setting(container)
+			.setName(name + ' Prompt')
+			.setDesc(`${description}. Use {query} as placeholder for user input.`)
+			.addTextArea(text => {
+				text
+					.setPlaceholder('Enter your custom prompt...')
+					.setValue(this.plugin.settings[settingKey] as string)
+					.onChange(async (value) => {
+						// Validate {query} placeholder exists
+						if (!value.includes('{query}')) {
+							new Notice('⚠️ Warning: Prompt should include {query} placeholder for user input');
+						}
+						
+						// Validate prompt length
+						if (value.length > 5000) {
+							new Notice('⚠️ Warning: Prompt is very long and may cause API errors');
+						}
+						
+						(this.plugin.settings[settingKey] as any) = value;
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.rows = 8;
+				text.inputEl.style.fontFamily = 'var(--font-monospace)';
+				text.inputEl.style.fontSize = 'var(--font-ui-small)';
+			});
+		
+		// Add character count and preview button
+		const controlContainer = container.createEl('div', { cls: 'prompt-controls' });
+		
+		const charCount = controlContainer.createEl('span', { 
+			cls: 'prompt-char-count',
+			text: `${(this.plugin.settings[settingKey] as string || '').length} characters`
+		});
+		
+		const previewButton = controlContainer.createEl('button', {
+			text: '👁️ Preview',
+			cls: 'prompt-preview-btn'
+		});
+		
+		previewButton.addEventListener('click', () => {
+			this.previewPrompt(settingKey, name);
+		});
+		
+		// Update character count on input
+		const textarea = setting.settingEl.querySelector('textarea');
+		if (textarea) {
+			textarea.addEventListener('input', () => {
+				charCount.textContent = `${textarea.value.length} characters`;
+			});
+		}
+	}
+
+	async loadPromptTemplate(templateName: string) {
+		// Skip loading if built-in is selected
+		if (templateName === 'built-in') {
+			return;
+		}
+		
+		const templates = {
+			'academic': {
+				quick: `### 🎓 Academic Quick Analysis
+
+**Research Question:** "{query}"
+
+## Key Academic Findings
+- **Primary Finding**: [Peer-reviewed evidence] [^1]
+- **Supporting Research**: [Recent studies] [^2]  
+- **Methodological Notes**: [Research approach] [^3]
+
+## Academic Context
+**Field Significance**: [Why this matters academically] [^4]
+
+## References
+[^1]: Author et al., "Title," Journal, Year. DOI/URL
+[^2]: Second Author, "Study," Publication, Year. Link
+[^3]: Methodology source with validation
+[^4]: Context and significance source
+
+**Standards**: 250-300 words, minimum 4 academic citations, peer-reviewed focus`,
+
+				comprehensive: `### 📚 Academic Research Framework
+
+**Research Topic:** "{query}"
+
+## Literature Review Summary
+**Current State**: [Overview of existing research] [^1][^2]
+**Research Gaps**: [Identified limitations in literature] [^3]
+
+## Theoretical Framework
+**Primary Theory**: [Main theoretical approach] [^4]
+**Supporting Frameworks**: [Additional theoretical context] [^5][^6]
+
+## Empirical Evidence
+**Quantitative Studies**: [Statistical findings with effect sizes] [^7][^8]
+**Qualitative Research**: [Thematic analysis and insights] [^9][^10]
+
+## Critical Analysis
+**Methodological Strengths**: [Research quality assessment] [^11]
+**Limitations**: [Acknowledged constraints] [^12]
+**Future Research**: [Recommended directions] [^13]
+
+## Academic Integration
+**Suggested Citations**: [[Key Study 1]], [[Theoretical Framework]]
+**Tags**: #academic-research #literature-review #evidence-based
+
+## References
+[Complete academic bibliography with DOI/URLs]
+
+**Standards**: 600-800 words, 13+ peer-reviewed citations, systematic review approach`,
+
+				deep: `### 🔬 Comprehensive Academic Investigation
+
+**Research Question:** "{query}"
+
+## Systematic Literature Analysis
+**Historical Development**: [Evolution of research in this area] [^1][^2]
+**Current Paradigms**: [Dominant theoretical approaches] [^3][^4]
+**Emerging Perspectives**: [New developments in the field] [^5][^6]
+
+## Methodological Review
+**Quantitative Approaches**: [Statistical methods and findings] [^7][^8][^9]
+**Qualitative Methods**: [Interpretive research and insights] [^10][^11][^12]
+**Mixed Methods**: [Integrated research designs] [^13][^14]
+
+## Critical Synthesis
+**Evidence Quality**: [Assessment of research rigor] [^15][^16]
+**Contradictory Findings**: [Conflicting evidence analysis] [^17][^18]
+**Meta-Analysis Results**: [Systematic review findings] [^19][^20]
+
+## Implications and Applications
+**Theoretical Contributions**: [Advancement of knowledge] [^21]
+**Practical Applications**: [Real-world implementation] [^22]
+**Policy Implications**: [Regulatory and institutional impact] [^23]
+
+## Future Research Agenda
+**Priority Questions**: [Critical gaps requiring investigation]
+**Methodological Improvements**: [Enhanced research approaches]
+**Interdisciplinary Opportunities**: [Cross-field collaboration]
+
+**Standards**: 1000-1500 words, 23+ peer-reviewed citations, comprehensive academic analysis`,
+
+				reasoning: `### 🧠 Academic Critical Reasoning
+
+**Analysis Topic:** "{query}"
+
+## Premise Evaluation
+**Primary Claims**: [Evidence-based assertions] [^1][^2]
+**Supporting Evidence**: [Quality of supporting research] [^3][^4]
+**Methodological Validity**: [Research design assessment] [^5]
+
+## Logical Framework
+**Theoretical Foundation**: [Underlying logical structure] [^6]
+**Causal Relationships**: [Evidence for causation vs correlation] [^7][^8]
+**Alternative Explanations**: [Competing hypotheses] [^9][^10]
+
+## Evidence Hierarchy
+**Tier 1**: Systematic reviews and meta-analyses [^11][^12]
+**Tier 2**: Randomized controlled trials [^13][^14]
+**Tier 3**: Observational studies [^15][^16]
+
+## Bias Assessment
+**Selection Bias**: [Sampling methodology evaluation] [^17]
+**Confirmation Bias**: [Research design objectivity] [^18]
+**Publication Bias**: [Missing or suppressed findings] [^19]
+
+## Confidence Assessment
+**High Confidence**: [Well-established findings] [^20]
+**Moderate Confidence**: [Provisional conclusions] [^21]
+**Low Confidence**: [Preliminary or disputed findings] [^22]
+
+**Standards**: 800-1000 words, 22+ citations, systematic logical analysis`,
+
+				youtube: `### 🎬 Academic Video Content Analysis
+
+**Video Resource:** {query}
+
+## Content Classification
+**Academic Value**: [Educational merit assessment] [^1]
+**Source Credibility**: [Speaker credentials and institutional affiliation] [^2]
+**Content Accuracy**: [Fact-checking against academic sources] [^3]
+
+## Knowledge Extraction
+**Key Concepts**: [Main academic ideas presented] [^4]
+**Evidence Presented**: [Research cited or referenced] [^5]
+**Methodological Discussion**: [Research approaches explained] [^6]
+
+## Critical Evaluation
+**Accuracy Assessment**: [Verification against peer-reviewed sources] [^7]
+**Bias Detection**: [Potential conflicts of interest] [^8]
+**Currency**: [Relevance of information to current research] [^9]
+
+## Academic Integration
+**Citation Format**: [Proper academic citation of video content] [^10]
+**Supporting Literature**: [Related academic sources] [^11][^12]
+**Research Applications**: [How content supports academic work] [^13]
+
+## Verification Resources
+**Primary Sources**: [Original research referenced] [^14]
+**Peer Review**: [Academic validation of claims] [^15]
+
+**Standards**: Academic rigor, proper citation, fact-checking focus`
+			},
+			
+			'business': {
+				quick: `### 💼 Business Quick Insight
+
+**Business Question:** "{query}"
+
+## Key Business Metrics
+- **Market Impact**: [Financial or strategic significance] [^1]
+- **Competitive Position**: [Market standing analysis] [^2]
+- **Implementation Cost**: [Resource requirements] [^3]
+
+## Executive Summary
+**Bottom Line**: [Direct business impact] [^4]
+**Timeline**: [Implementation or impact timeframe] [^5]
+
+## Sources
+[^1]: Market data source
+[^2]: Competitive analysis source
+[^3]: Cost analysis source
+[^4]: Financial impact source
+[^5]: Timeline validation source
+
+**Focus**: ROI, market impact, actionable insights`,
+
+				comprehensive: `### 📊 Business Analysis Framework
+
+**Business Topic:** "{query}"
+
+## Market Analysis
+**Market Size**: [Total addressable market data] [^1][^2]
+**Growth Trends**: [Historical and projected growth] [^3][^4]
+**Competitive Landscape**: [Key players and market share] [^5][^6]
+
+## Financial Impact
+**Revenue Implications**: [Direct financial effects] [^7][^8]
+**Cost Analysis**: [Implementation and operational costs] [^9]
+**ROI Projections**: [Expected return on investment] [^10]
+
+## Strategic Considerations
+**Risks**: [Potential challenges and mitigation] [^11]
+**Opportunities**: [Growth and expansion potential] [^12]
+**Implementation Plan**: [Actionable next steps] [^13]
+
+## Business Integration
+**KPIs**: [[Key Performance Indicators]], [[Financial Metrics]]
+**Tags**: #business-analysis #market-research #strategy
+
+**Standards**: 500-700 words, focus on ROI and implementation`,
+
+				deep: `### 🎯 Strategic Business Deep Dive
+
+**Strategic Question:** "{query}"
+
+## Comprehensive Market Intelligence
+**Industry Analysis**: [Porter's Five Forces assessment] [^1][^2][^3]
+**Value Chain Analysis**: [Operational efficiency opportunities] [^4][^5]
+**SWOT Assessment**: [Strengths, weaknesses, opportunities, threats] [^6][^7]
+
+## Financial Modeling
+**Revenue Streams**: [Multiple income source analysis] [^8][^9]
+**Cost Structure**: [Fixed vs variable cost breakdown] [^10]
+**Profit Margins**: [Industry benchmarking] [^11]
+**Cash Flow Projections**: [Multi-year financial forecasting] [^12]
+
+## Risk Assessment Framework
+**Market Risks**: [External threat evaluation] [^13]
+**Operational Risks**: [Internal process vulnerabilities] [^14]
+**Financial Risks**: [Capital and liquidity concerns] [^15]
+**Regulatory Risks**: [Compliance and legal considerations] [^16]
+
+## Implementation Strategy
+**Phased Approach**: [Timeline and milestone planning] [^17]
+**Resource Allocation**: [Human and capital requirements] [^18]
+**Success Metrics**: [Measurable outcome definitions] [^19]
+
+**Standards**: 900-1200 words, comprehensive business strategy focus`,
+
+				reasoning: `### 🧮 Business Logic & Decision Framework
+
+**Decision Analysis:** "{query}"
+
+## Business Hypothesis Testing
+**Core Assumptions**: [Underlying business beliefs] [^1][^2]
+**Market Validation**: [Evidence supporting assumptions] [^3][^4]
+**Data Quality**: [Reliability of business intelligence] [^5]
+
+## Financial Logic Chain
+**Revenue Logic**: [How money is generated] [^6][^7]
+**Cost Logic**: [Expense structure rationale] [^8]
+**Profit Logic**: [Path to profitability] [^9]
+
+## Risk-Reward Analysis
+**Probability Assessment**: [Likelihood of success/failure] [^10]
+**Impact Magnitude**: [Scale of potential outcomes] [^11]
+**Decision Trees**: [Multiple scenario planning] [^12]
+
+## Strategic Reasoning
+**Competitive Advantage**: [Sustainable differentiation] [^13]
+**Market Timing**: [Entry and execution timing] [^14]
+**Resource Optimization**: [Efficiency maximization] [^15]
+
+**Standards**: Data-driven decision making, logical business case`,
+
+				youtube: `### 📹 Business Video Intelligence
+
+**Business Content:** {query}
+
+## Content Authority Assessment
+**Speaker Credentials**: [Business experience and track record] [^1]
+**Company/Platform**: [Organizational credibility] [^2]
+**Market Position**: [Industry standing and reputation] [^3]
+
+## Business Intelligence Extraction
+**Strategic Insights**: [High-level business strategy] [^4]
+**Tactical Information**: [Operational implementation] [^5]
+**Market Data**: [Financial metrics and trends] [^6]
+**Case Studies**: [Real-world business examples] [^7]
+
+## Implementation Value
+**Actionability**: [Practical business application] [^8]
+**ROI Potential**: [Expected business value] [^9]
+**Resource Requirements**: [Implementation cost/effort] [^10]
+
+## Business Validation
+**Market Verification**: [Independent business source confirmation] [^11]
+**Financial Accuracy**: [Revenue/cost data validation] [^12]
+**Strategic Soundness**: [Business logic assessment] [^13]
+
+**Standards**: Business-focused analysis, ROI orientation, implementation ready`
+			},
+
+			'creative': {
+				quick: `### ✨ Creative Quick Spark
+
+**Creative Prompt:** "{query}"
+
+## Immediate Inspiration
+- **Core Concept**: [Central creative idea] [^1]
+- **Unique Angle**: [Fresh perspective or twist] [^2]
+- **Emotional Hook**: [Feeling or connection point] [^3]
+
+## Creative Direction
+**Style/Tone**: [Artistic or narrative approach] [^4]
+**Target Audience**: [Who resonates with this] [^5]
+
+## Next Steps
+**Development Path**: [How to expand this idea] [^6]
+
+**Focus**: Inspiration, originality, emotional impact`,
+
+				comprehensive: `### 🎨 Creative Development Framework
+
+**Creative Project:** "{query}"
+
+## Conceptual Foundation
+**Central Theme**: [Core message or idea] [^1][^2]
+**Creative Vision**: [Artistic direction and style] [^3][^4]
+**Target Audience**: [Demographics and psychographics] [^5]
+
+## Creative Elements
+**Narrative Structure**: [Story or message flow] [^6][^7]
+**Visual/Audio Elements**: [Sensory components] [^8]
+**Emotional Journey**: [Audience experience arc] [^9]
+
+## Inspiration Sources
+**Cultural References**: [Relevant cultural touchstones] [^10]
+**Artistic Influences**: [Creative works and movements] [^11]
+**Contemporary Trends**: [Current creative directions] [^12]
+
+## Creative Integration
+**Project Links**: [[Creative Brief]], [[Style Guide]]
+**Tags**: #creative-development #inspiration #artistic-vision
+
+**Standards**: 500-700 words, focus on originality and emotional impact`,
+
+				deep: `### 🌈 Creative Deep Exploration
+
+**Creative Vision:** "{query}"
+
+## Artistic Archaeological Dig
+**Historical Context**: [Cultural and artistic heritage] [^1][^2]
+**Contemporary Landscape**: [Current creative environment] [^3][^4]
+**Future Possibilities**: [Emerging creative directions] [^5]
+
+## Multi-Sensory Creative Matrix
+**Visual Language**: [Color, form, composition elements] [^6][^7]
+**Auditory Landscape**: [Sound, rhythm, musical elements] [^8]
+**Tactile Dimensions**: [Texture, material, physical experience] [^9]
+**Narrative Architecture**: [Story structure and emotional flow] [^10]
+
+## Cross-Cultural Creative Synthesis
+**Global Perspectives**: [International creative approaches] [^11][^12]
+**Cultural Fusion**: [Blending traditional and modern] [^13]
+**Universal Themes**: [Human connection points] [^14]
+
+## Creative Innovation Framework
+**Experimental Techniques**: [Cutting-edge creative methods] [^15]
+**Technology Integration**: [Digital and traditional fusion] [^16]
+**Collaborative Possibilities**: [Multi-disciplinary approaches] [^17]
+
+**Standards**: 800-1200 words, emphasis on artistic innovation and cultural depth`,
+
+				reasoning: `### 🎭 Creative Logic & Artistic Reasoning
+
+**Creative Analysis:** "{query}"
+
+## Artistic Hypothesis Formation
+**Creative Premise**: [Central artistic assumption] [^1]
+**Aesthetic Logic**: [Why this approach works] [^2]
+**Audience Psychology**: [Emotional and cognitive impact] [^3]
+
+## Creative Evidence Assessment
+**Historical Precedents**: [Successful similar approaches] [^4][^5]
+**Market Response**: [Audience reception data] [^6]
+**Critical Analysis**: [Expert creative evaluation] [^7]
+
+## Artistic Decision Framework
+**Style Choices**: [Rational for aesthetic decisions] [^8]
+**Medium Selection**: [Why this format/platform] [^9]
+**Timing Considerations**: [Cultural moment alignment] [^10]
+
+## Creative Risk-Reward Analysis
+**Innovation Value**: [Originality vs accessibility] [^11]
+**Market Acceptance**: [Commercial viability] [^12]
+**Artistic Integrity**: [Vision vs compromise] [^13]
+
+**Standards**: Logical creative analysis, evidence-based artistic decisions`,
+
+				youtube: `### 🎬 Creative Video Analysis
+
+**Creative Content:** {query}
+
+## Creative Authority
+**Creator Background**: [Artistic credentials and experience] [^1]
+**Creative Platform**: [Channel focus and audience] [^2]
+**Production Quality**: [Technical and artistic execution] [^3]
+
+## Creative Intelligence Extraction
+**Artistic Techniques**: [Methods and approaches demonstrated] [^4]
+**Creative Process**: [Behind-the-scenes methodology] [^5]
+**Innovation Elements**: [Unique or cutting-edge aspects] [^6]
+**Inspiration Sources**: [References and influences mentioned] [^7]
+
+## Creative Application Value
+**Skill Development**: [Learning opportunities] [^8]
+**Inspiration Potential**: [Creative spark generation] [^9]
+**Practical Techniques**: [Actionable creative methods] [^10]
+
+## Creative Validation
+**Artistic Community**: [Peer recognition and response] [^11]
+**Innovation Assessment**: [Originality and impact] [^12]
+**Educational Value**: [Learning and development merit] [^13]
+
+**Standards**: Creative focus, artistic development, inspiration-driven analysis`
+			},
+
+			'technical': {
+				quick: `### ⚡ Technical Quick Reference
+
+**Technical Query:** "{query}"
+
+## Core Technical Points
+- **Key Technology**: [Primary tech/method involved] [^1]
+- **Implementation**: [How it's technically achieved] [^2]
+- **Constraints**: [Technical limitations or requirements] [^3]
+
+## Technical Context
+**Use Cases**: [When and why to use this] [^4]
+**Alternatives**: [Other technical approaches] [^5]
+
+## Implementation Notes
+**Quick Start**: [Immediate next steps] [^6]
+
+**Focus**: Technical accuracy, implementation details, practical application`,
+
+				comprehensive: `### 🔧 Technical Documentation Framework
+
+**Technical Topic:** "{query}"
+
+## Architecture Overview
+**System Design**: [High-level technical architecture] [^1][^2]
+**Components**: [Key technical modules and interfaces] [^3][^4]
+**Data Flow**: [Information processing pipeline] [^5]
+
+## Implementation Details
+**Technologies**: [Specific tools, languages, frameworks] [^6][^7]
+**Configuration**: [Setup and deployment requirements] [^8]
+**Performance**: [Speed, scalability, resource usage] [^9]
+
+## Integration Considerations
+**Dependencies**: [External systems and libraries] [^10]
+**Compatibility**: [Version and platform requirements] [^11]
+**Security**: [Authentication, authorization, data protection] [^12]
+
+## Technical Integration
+**Documentation**: [[API Reference]], [[Configuration Guide]]
+**Tags**: #technical-documentation #implementation #system-design
+
+**Standards**: 500-700 words, focus on implementation and technical accuracy`,
+
+				deep: `### 🏗️ Technical Deep Architecture
+
+**Technical System:** "{query}"
+
+## Comprehensive System Analysis
+**Architecture Patterns**: [Design patterns and principles] [^1][^2]
+**Scalability Design**: [Performance and growth considerations] [^3][^4]
+**Security Framework**: [Comprehensive security model] [^5][^6]
+
+## Implementation Deep Dive
+**Core Algorithms**: [Mathematical and logical foundations] [^7][^8]
+**Data Structures**: [Storage and organization methods] [^9]
+**Performance Optimization**: [Efficiency improvements] [^10]
+**Error Handling**: [Fault tolerance and recovery] [^11]
+
+## Technology Stack Analysis
+**Frontend Technologies**: [User interface implementation] [^12]
+**Backend Systems**: [Server-side architecture] [^13]
+**Database Design**: [Data persistence strategy] [^14]
+**Infrastructure**: [Deployment and hosting] [^15]
+
+## Advanced Considerations
+**Microservices**: [Service decomposition strategy] [^16]
+**DevOps Integration**: [CI/CD and deployment automation] [^17]
+**Monitoring**: [Observability and logging] [^18]
+**Testing Strategy**: [Quality assurance approach] [^19]
+
+**Standards**: 900-1200 words, comprehensive technical analysis`,
+
+				reasoning: `### 🧠 Technical Logic & System Reasoning
+
+**Technical Problem:** "{query}"
+
+## Technical Hypothesis Framework
+**Problem Definition**: [Clear technical challenge statement] [^1]
+**Solution Assumptions**: [Technical approach rationale] [^2]
+**Constraint Analysis**: [Technical limitations and requirements] [^3]
+
+## Algorithm and Logic Evaluation
+**Computational Complexity**: [Time and space efficiency] [^4]
+**Correctness Proof**: [Mathematical verification] [^5]
+**Edge Case Analysis**: [Boundary condition handling] [^6]
+
+## Technology Decision Matrix
+**Technology Selection**: [Tool/framework choice rationale] [^7]
+**Trade-off Analysis**: [Performance vs complexity] [^8]
+**Maintenance Considerations**: [Long-term technical debt] [^9]
+
+## System Validation
+**Testing Strategy**: [Verification and validation approach] [^10]
+**Performance Benchmarks**: [Measurable technical criteria] [^11]
+**Security Assessment**: [Vulnerability analysis] [^12]
+
+**Standards**: Logical technical analysis, evidence-based engineering decisions`,
+
+				youtube: `### 🛠️ Technical Video Analysis
+
+**Technical Content:** {query}
+
+## Technical Authority Assessment
+**Expert Credentials**: [Technical background and experience] [^1]
+**Technical Platform**: [Channel focus and specialization] [^2]
+**Content Accuracy**: [Technical correctness verification] [^3]
+
+## Technical Knowledge Extraction
+**Implementation Details**: [Code, configurations, procedures] [^4]
+**Best Practices**: [Industry-standard approaches] [^5]
+**Technical Insights**: [Expert tips and optimizations] [^6]
+**Tool Demonstrations**: [Software and technology usage] [^7]
+
+## Implementation Value
+**Practical Application**: [Direct implementation potential] [^8]
+**Skill Development**: [Technical learning opportunities] [^9]
+**Problem Solving**: [Solution to technical challenges] [^10]
+
+## Technical Validation
+**Code Quality**: [Programming standards and practices] [^11]
+**Industry Standards**: [Compliance with technical norms] [^12]
+**Community Verification**: [Peer review and validation] [^13]
+
+**Standards**: Technical accuracy, implementation focus, engineering best practices`
+			}
+		};
+
+		const template = templates[templateName as keyof typeof templates];
+		if (template) {
+			this.plugin.settings.quickPrompt = template.quick;
+			this.plugin.settings.comprehensivePrompt = template.comprehensive;
+			this.plugin.settings.deepPrompt = template.deep;
+			this.plugin.settings.reasoningPrompt = template.reasoning;
+			this.plugin.settings.youtubePrompt = template.youtube;
+			await this.plugin.saveSettings();
+			new Notice(`✅ Loaded ${templateName} prompt template successfully`);
+		}
+	}
+
+	previewPrompt(settingKey: keyof GeminiWebSearchSettings, name: string) {
+		const prompt = this.plugin.settings[settingKey] as string;
+		const previewText = prompt.replace('{query}', 'example search query');
+		
+		const modal = new Modal(this.app);
+		modal.titleEl.textContent = `Preview: ${name} Prompt`;
+		
+		const content = modal.contentEl;
+		content.createEl('h3', { text: 'Prompt Preview' });
+		content.createEl('p', { text: 'This is how your prompt will appear with a sample query:' });
+		
+		const previewContainer = content.createEl('div', { 
+			cls: 'prompt-preview-content'
+		});
+		previewContainer.style.cssText = `
+			background: var(--background-secondary);
+			padding: var(--size-4-2);
+			border-radius: var(--radius-s);
+			font-family: var(--font-monospace);
+			font-size: var(--font-ui-small);
+			white-space: pre-wrap;
+			max-height: 400px;
+			overflow-y: auto;
+			border: 1px solid var(--background-modifier-border);
+		`;
+		previewContainer.textContent = previewText;
+		
+		// Character count and validation info
+		const infoContainer = content.createEl('div', { cls: 'prompt-info' });
+		infoContainer.createEl('p', { text: `Character count: ${prompt.length}` });
+		
+		if (!prompt.includes('{query}')) {
+			const warning = infoContainer.createEl('p', { 
+				text: '⚠️ Warning: Prompt does not contain {query} placeholder',
+				cls: 'prompt-warning'
+			});
+			warning.style.color = 'var(--text-error)';
+		}
+		
+		if (prompt.length > 5000) {
+			const warning = infoContainer.createEl('p', { 
+				text: '⚠️ Warning: Prompt is very long and may cause API errors',
+				cls: 'prompt-warning'
+			});
+			warning.style.color = 'var(--text-error)';
+		}
+		
+		modal.open();
+	}
+
+	validateAllPrompts(container: HTMLElement) {
+		const results = container.createEl('div', { cls: 'validation-results' });
+		results.empty();
+		
+		const prompts = [
+			{ key: 'quickPrompt', name: 'Quick Mode', maxLength: 2000 },
+			{ key: 'comprehensivePrompt', name: 'Comprehensive Mode', maxLength: 4000 },
+			{ key: 'deepPrompt', name: 'Deep Mode', maxLength: 6000 },
+			{ key: 'reasoningPrompt', name: 'Reasoning Mode', maxLength: 5000 },
+			{ key: 'youtubePrompt', name: 'YouTube Mode', maxLength: 4000 }
+		];
+		
+		let allValid = true;
+		let validCount = 0;
+		
+		prompts.forEach(prompt => {
+			const value = this.plugin.settings[prompt.key as keyof GeminiWebSearchSettings] as string;
+			const resultEl = results.createEl('div', { cls: 'validation-item' });
+			
+			if (!value || value.trim().length === 0) {
+				resultEl.innerHTML = `❌ ${prompt.name}: Empty prompt`;
+				resultEl.style.color = 'var(--text-error)';
+				allValid = false;
+			} else if (!value.includes('{query}')) {
+				resultEl.innerHTML = `⚠️ ${prompt.name}: Missing {query} placeholder`;
+				resultEl.style.color = 'var(--text-warning)';
+				allValid = false;
+			} else if (value.length > prompt.maxLength) {
+				resultEl.innerHTML = `⚠️ ${prompt.name}: Too long (${value.length}/${prompt.maxLength} chars)`;
+				resultEl.style.color = 'var(--text-warning)';
+			} else if (value.length > 5000) {
+				resultEl.innerHTML = `⚠️ ${prompt.name}: Very long (${value.length} chars) - may cause API errors`;
+				resultEl.style.color = 'var(--text-warning)';
+			} else {
+				resultEl.innerHTML = `✅ ${prompt.name}: Valid (${value.length} chars)`;
+				resultEl.style.color = 'var(--text-success)';
+				validCount++;
+			}
+		});
+		
+		// Overall validation summary
+		const summaryEl = results.createEl('div', { cls: 'validation-summary' });
+		if (allValid && validCount === prompts.length) {
+			summaryEl.innerHTML = '🎉 All prompts are valid and ready to use!';
+			summaryEl.style.color = 'var(--text-success)';
+			summaryEl.style.fontWeight = 'var(--font-weight-bold)';
+		} else {
+			summaryEl.innerHTML = `📊 Validation Summary: ${validCount}/${prompts.length} prompts are fully valid`;
+			summaryEl.style.color = 'var(--text-muted)';
+		}
+		
+		// Add validation tips
+		const tipsEl = results.createEl('div', { cls: 'validation-tips' });
+		tipsEl.innerHTML = `
+			<h6>💡 Prompt Optimization Tips:</h6>
+			<ul>
+				<li>Always include <code>{query}</code> placeholder for user input</li>
+				<li>Keep prompts under recommended length limits for optimal API performance</li>
+				<li>Use clear structure with headers and bullet points</li>
+				<li>Include citation placeholders [^1], [^2] for source references</li>
+				<li>Test prompts with preview function before using</li>
+			</ul>
+		`;
+	}
+
+	async resetPromptsToDefaults() {
+		// Load default prompts from DEFAULT_SETTINGS
+		this.plugin.settings.quickPrompt = DEFAULT_SETTINGS.quickPrompt;
+		this.plugin.settings.comprehensivePrompt = DEFAULT_SETTINGS.comprehensivePrompt;
+		this.plugin.settings.deepPrompt = DEFAULT_SETTINGS.deepPrompt;
+		this.plugin.settings.reasoningPrompt = DEFAULT_SETTINGS.reasoningPrompt;
+		this.plugin.settings.youtubePrompt = DEFAULT_SETTINGS.youtubePrompt;
+		
+		await this.plugin.saveSettings();
+		new Notice('✅ All prompts reset to default values');
+	}
+
+	exportPrompts() {
+		const prompts = {
+			quickPrompt: this.plugin.settings.quickPrompt,
+			comprehensivePrompt: this.plugin.settings.comprehensivePrompt,
+			deepPrompt: this.plugin.settings.deepPrompt,
+			reasoningPrompt: this.plugin.settings.reasoningPrompt,
+			youtubePrompt: this.plugin.settings.youtubePrompt,
+			exportDate: new Date().toISOString(),
+			pluginVersion: this.plugin.manifest.version
+		};
+
+		const dataStr = JSON.stringify(prompts, null, 2);
+		const dataBlob = new Blob([dataStr], { type: 'application/json' });
+		
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(dataBlob);
+		link.download = `ai-web-search-custom-prompts-${new Date().toISOString().split('T')[0]}.json`;
+		link.click();
+		
+		new Notice('📤 Custom prompts exported successfully');
+	}
+
+	importPrompts() {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.json';
+		
+		input.onchange = async (e) => {
+			const file = (e.target as HTMLInputElement).files?.[0];
+			if (!file) return;
+			
+			try {
+				const text = await file.text();
+				const data = JSON.parse(text);
+				
+				// Validate imported data
+				const requiredFields = ['quickPrompt', 'comprehensivePrompt', 'deepPrompt', 'reasoningPrompt', 'youtubePrompt'];
+				const missingFields = requiredFields.filter(field => !data[field]);
+				
+				if (missingFields.length > 0) {
+					new Notice(`❌ Invalid prompt file: Missing fields ${missingFields.join(', ')}`);
+					return;
+				}
+				
+				// Validate each prompt has {query} placeholder
+				const invalidPrompts = requiredFields.filter(field => !data[field].includes('{query}'));
+				if (invalidPrompts.length > 0) {
+					const proceed = confirm(`⚠️ Some prompts are missing {query} placeholder: ${invalidPrompts.join(', ')}. Import anyway?`);
+					if (!proceed) return;
+				}
+				
+				// Import prompts
+				this.plugin.settings.quickPrompt = data.quickPrompt;
+				this.plugin.settings.comprehensivePrompt = data.comprehensivePrompt;
+				this.plugin.settings.deepPrompt = data.deepPrompt;
+				this.plugin.settings.reasoningPrompt = data.reasoningPrompt;
+				this.plugin.settings.youtubePrompt = data.youtubePrompt;
+				
+				await this.plugin.saveSettings();
+				this.display(); // Refresh settings
+				
+				new Notice('📥 Custom prompts imported successfully');
+			} catch (error) {
+				new Notice('❌ Failed to import prompts: Invalid file format');
+				console.error('Import error:', error);
+			}
+		};
+		
+		input.click();
 	}
 }
