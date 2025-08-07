@@ -125,6 +125,52 @@ interface GeminiWebSearchSettings {
 	chatFolderName: string;
 	chatNoteTemplate: 'timestamp-query' | 'query-timestamp' | 'query-only' | 'counter';
 	chatSaveEnabled: boolean;
+
+	// Global provider-level settings for advanced UI
+	geminiModel: string;
+	geminiTemperature: number;
+	geminiTopP: number;
+	geminiTopK: number;
+	geminiMaxOutputTokens: number;
+	geminiHarassmentFilter: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+	geminiHateSpeechFilter: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+	geminiSexuallyExplicitFilter: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+	geminiDangerousContentFilter: 'BLOCK_NONE' | 'BLOCK_ONLY_HIGH' | 'BLOCK_MEDIUM_AND_ABOVE' | 'BLOCK_LOW_AND_ABOVE';
+
+	perplexityModel: string;
+	perplexityTemperature: number;
+	perplexityMaxTokens: number;
+	perplexityTopP: number;
+	perplexityTopK: number;
+	perplexityFrequencyPenalty: number;
+	perplexityPresencePenalty: number;
+	perplexityReturnCitations: boolean;
+	perplexityReturnImages: boolean;
+	perplexityReturnRelated: boolean;
+	perplexitySearchDomainFilter: string;
+
+	tavilySearchDepth: 'basic' | 'advanced';
+	tavilyMaxResults: number;
+	tavilyIncludeDomains: string;
+	tavilyExcludeDomains: string;
+	tavilyIncludeAnswer: boolean;
+	tavilyIncludeRawContent: boolean;
+	tavilyIncludeImages: boolean;
+	tavilyTopic: string;
+	tavilyDays: number;
+
+	exaSearchType: 'neural' | 'keyword' | 'auto' | 'fast';
+	exaUseAutoprompt: boolean;
+	exaCategory: string;
+	exaNumResults: number;
+	exaIncludeDomains: string;
+	exaExcludeDomains: string;
+	exaStartCrawlDate: string;
+	exaEndCrawlDate: string;
+	exaStartPublishedDate: string;
+	exaEndPublishedDate: string;
+	exaIncludeText: boolean;
+	exaIncludeHighlights: boolean;
 	
 	// Enhanced Model Configuration for Research Modes
 	researchModeConfigs: {
@@ -302,19 +348,44 @@ interface GeminiWebSearchSettings {
 		};
 	};
 	
-	// Exa (Metaphor) Parameters
-	exaSearchType: 'auto' | 'keyword' | 'neural' | 'fast';
-	exaCategory: string;
-	exaIncludeDomains: string[];
-	exaExcludeDomains: string[];
-	exaStartDate: string;
-	exaEndDate: string;
-	exaIncludeText: string[];
-	exaExcludeText: string[];
-	exaGetText: boolean;
-	exaGetHighlights: boolean;
-	exaGetSummary: boolean;
-	
+	// Tavily Search Parameters (from API docs)
+	tavilyParams: {
+		query: string;
+		search_depth: 'basic' | 'advanced';
+		include_answer: boolean;
+		include_images: boolean;
+		include_raw_content: boolean;
+		max_results: number;
+		include_domains: string[];
+		exclude_domains: string[];
+		auto_parameters: {
+			topic: 'general' | 'news' | 'finance' | 'research' | 'shopping';
+			search_depth: 'basic' | 'advanced';
+		};
+		days: number | null; // Search freshness in days
+		api_format: 'json' | 'markdown';
+	};
+
+	// Exa (Metaphor) Parameters (from API docs)
+	exaParams: {
+		query: string;
+		type: 'auto' | 'keyword' | 'neural' | 'fast';
+		category: 'company' | 'research paper' | 'news' | 'pdf' | 'github' | 'tweet' | 'personal site' | 'linkedin profile' | 'financial report' | '';
+		numResults: number;
+		includeDomains: string[];
+		excludeDomains: string[];
+		startCrawlDate: string;
+		endCrawlDate: string;
+		startPublishedDate: string;
+		endPublishedDate: string;
+		includeText: string[];
+		excludeText: string[];
+		getText: boolean;
+		getHighlights: boolean;
+		getSummary: boolean;
+		userLocation: string; // Two-letter ISO country code
+	};
+
 	// Custom prompts with professional frameworks optimized for Obsidian
 	enableCustomPrompts: boolean;
 	quickPrompt: string;
@@ -352,9 +423,7 @@ interface GeminiWebSearchSettings {
 		compactMode: boolean;
 	};
 	
-	// Backward compatibility
-	geminiModel: string;
-	perplexityModel: string;
+	// Research mode model settings for backward compatibility
 	researchModeModels: {
 		quick: string;
 		comprehensive: string;
@@ -378,6 +447,52 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 	chatFolderName: 'AI Web Search Chats',
 	chatNoteTemplate: 'timestamp-query',
 	chatSaveEnabled: true,
+	
+	// Global provider-level settings for advanced UI
+	geminiModel: 'gemini-2.5-flash',
+	geminiTemperature: 0.7,
+	geminiTopP: 0.8,
+	geminiTopK: 40,
+	geminiMaxOutputTokens: 2000,
+	geminiHarassmentFilter: 'BLOCK_MEDIUM_AND_ABOVE',
+	geminiHateSpeechFilter: 'BLOCK_MEDIUM_AND_ABOVE',
+	geminiSexuallyExplicitFilter: 'BLOCK_MEDIUM_AND_ABOVE',
+	geminiDangerousContentFilter: 'BLOCK_MEDIUM_AND_ABOVE',
+
+	perplexityModel: 'sonar-pro',
+	perplexityTemperature: 0.5,
+	perplexityMaxTokens: 1500,
+	perplexityTopP: 0.8,
+	perplexityTopK: 30,
+	perplexityFrequencyPenalty: 0.0,
+	perplexityPresencePenalty: 0.0,
+	perplexityReturnCitations: true,
+	perplexityReturnImages: false,
+	perplexityReturnRelated: false,
+	perplexitySearchDomainFilter: '',
+
+	tavilySearchDepth: 'basic',
+	tavilyMaxResults: 5,
+	tavilyIncludeDomains: '',
+	tavilyExcludeDomains: '',
+	tavilyIncludeAnswer: true,
+	tavilyIncludeRawContent: false,
+	tavilyIncludeImages: false,
+	tavilyTopic: '',
+	tavilyDays: 7,
+
+	exaSearchType: 'auto',
+	exaUseAutoprompt: false,
+	exaCategory: '',
+	exaNumResults: 10,
+	exaIncludeDomains: '',
+	exaExcludeDomains: '',
+	exaStartCrawlDate: '',
+	exaEndCrawlDate: '',
+	exaStartPublishedDate: '',
+	exaEndPublishedDate: '',
+	exaIncludeText: true,
+	exaIncludeHighlights: true,
 	
 	// Enhanced Research Mode Configurations
 	researchModeConfigs: {
@@ -546,19 +661,44 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 		}
 	},
 	
-	// Advanced Exa parameters (optimal defaults from docs)
-	exaSearchType: 'auto',
-	exaCategory: '',
-	exaIncludeDomains: [],
-	exaExcludeDomains: [],
-	exaStartDate: '',
-	exaEndDate: '',
-	exaIncludeText: [],
-	exaExcludeText: [],
-	exaGetText: true,
-	exaGetHighlights: true,
-	exaGetSummary: true,
-	
+	// Tavily Search Parameters (optimized defaults)
+	tavilyParams: {
+		query: '',
+		search_depth: 'basic',
+		include_answer: true,
+		include_images: false,
+		include_raw_content: false,
+		max_results: 5,
+		include_domains: [],
+		exclude_domains: [],
+		auto_parameters: {
+			topic: 'general',
+			search_depth: 'basic'
+		},
+		days: null,
+		api_format: 'json'
+	},
+
+	// Exa Search Parameters (optimized defaults from API docs)
+	exaParams: {
+		query: '',
+		type: 'auto',
+		category: '',
+		numResults: 10,
+		includeDomains: [],
+		excludeDomains: [],
+		startCrawlDate: '',
+		endCrawlDate: '',
+		startPublishedDate: '',
+		endPublishedDate: '',
+		includeText: [],
+		excludeText: [],
+		getText: true,
+		getHighlights: true,
+		getSummary: true,
+		userLocation: 'US'
+	},
+
 	// Custom prompts with professional frameworks optimized for Obsidian
 	enableCustomPrompts: false,
 	quickPrompt: "### Quick Research Response Framework\\n\\nYou are an expert researcher providing concise, actionable insights. Focus on immediate value and clear conclusions.\\n\\n**Research Query:** \\\"{query}\\\"\\n\\n**Response Structure:**\\n## 🎯 Key Findings\\n- Present 2-3 most important insights\\n- Use bullet points for clarity\\n- Keep each point to 1-2 sentences\\n\\n## 📚 Essential Sources\\nWhen referencing sources, use this format:\\n- **Source Name** - Brief description [^1]\\n- **Source Name** - Brief description [^2]\\n\\n## 🔗 Recommended Reading\\nFor additional external resources, format as:\\n- [Resource Title](https://example.com) - Why this is valuable\\n\\n---\\n### Citations\\n[^1]: Full citation with author, title, publication, date\\n[^2]: Full citation with author, title, publication, date\\n\\n**Guidelines:**\\n- Maximum 300 words total\\n- Prioritize recent, authoritative sources\\n- Include actionable next steps if relevant\\n- Use Obsidian-compatible markdown formatting",
@@ -626,9 +766,7 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 		compactMode: false,
 	},
 	
-	// Backward compatibility
-	geminiModel: 'gemini-2.5-flash',
-	perplexityModel: 'sonar-pro',
+	// Research mode model settings for backward compatibility
 	researchModeModels: {
 		quick: 'gemini-2.5-flash-lite',
 		comprehensive: 'gemini-2.5-flash',
@@ -644,6 +782,24 @@ const CHAT_VIEW_TYPE = "gemini-chat-view";
 // Enhanced Main Plugin Class
 export default class GeminiWebSearchPlugin extends Plugin {
 	settings!: GeminiWebSearchSettings;
+
+	getCurrentResearchMode(): 'quick' | 'comprehensive' | 'deep' | 'reasoning' | 'youtube' {
+		try {
+			// Get current research mode from chat view
+			const chatView = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)?.[0]?.view as GeminiChatView;
+			const researchMode = chatView?.currentResearchMode;
+			
+			if (researchMode && InputValidator.validateResearchMode(researchMode.id)) {
+				return researchMode.id as 'quick' | 'comprehensive' | 'deep' | 'reasoning' | 'youtube';
+			}
+			
+			// Default to comprehensive if no mode is found
+			return 'comprehensive';
+		} catch (error) {
+			PluginLogger.getInstance().warn('Failed to get current research mode, using default', error);
+			return 'comprehensive';
+		}
+	}
 
 	async onload() {
 		const logger = PluginLogger.getInstance();
@@ -930,11 +1086,14 @@ export default class GeminiWebSearchPlugin extends Plugin {
 		});
 
 		const requestBody = {
-			model: 'llama-3.1-sonar-small-128k-chat', // Use chat model instead of search model
+			model: this.settings.perplexityModel,
 			messages: messages,
-			temperature: 0.7,
-			max_tokens: 2048,
-			top_p: 0.8
+			temperature: this.settings.perplexityTemperature,
+			max_tokens: this.settings.perplexityMaxTokens,
+			top_p: this.settings.perplexityTopP,
+			top_k: this.settings.perplexityTopK,
+			frequency_penalty: this.settings.perplexityFrequencyPenalty,
+			presence_penalty: this.settings.perplexityPresencePenalty
 		};
 
 		try {
@@ -1312,8 +1471,149 @@ For additional context and verification:
 			throw new Error('Perplexity API key not configured');
 		}
 
-		// Implementation here - simplified for now
-		return `Perplexity search result for: ${query}`;
+		const logger = PluginLogger.getInstance();
+		const performanceMonitor = PerformanceMonitor.getInstance();
+		const operationId = `perplexity-search-${Date.now()}`;
+		
+		try {
+			performanceMonitor.startTimer(operationId);
+			logger.debug('Starting Perplexity search', { query });
+
+			// Get current research mode config (excluding youtube for Perplexity)
+			const currentMode = this.getCurrentResearchMode();
+			let perplexityParams;
+			let model: string;
+			
+			// YouTube mode doesn't support Perplexity, fall back to comprehensive
+			if (currentMode === 'youtube') {
+				perplexityParams = this.settings.researchModeConfigs.comprehensive.perplexityParams;
+				model = this.settings.researchModeConfigs.comprehensive.perplexityModel;
+			} else {
+				perplexityParams = this.settings.researchModeConfigs[currentMode].perplexityParams;
+				model = this.settings.researchModeConfigs[currentMode].perplexityModel;
+			}
+
+			// Prepare Perplexity API request
+			const requestBody: Record<string, any> = {
+				model: model,
+				messages: [
+					{
+						role: 'user',
+						content: query
+					}
+				],
+				temperature: perplexityParams.temperature,
+				max_tokens: perplexityParams.max_tokens,
+				top_p: perplexityParams.top_p,
+				top_k: perplexityParams.top_k,
+				frequency_penalty: perplexityParams.frequency_penalty,
+				presence_penalty: perplexityParams.presence_penalty,
+				stream: false, // We'll handle non-streaming for simplicity
+				
+				// Perplexity-specific search parameters
+				search_domain_filter: perplexityParams.search_domain_filter.length > 0 ? perplexityParams.search_domain_filter : undefined,
+				search_recency_filter: perplexityParams.search_recency_filter,
+				return_related_questions: perplexityParams.return_related_questions,
+				return_citations: perplexityParams.return_citations,
+				return_images: perplexityParams.return_images
+			};
+
+			// Remove undefined fields
+			Object.keys(requestBody).forEach(key => {
+				if (requestBody[key] === undefined) {
+					delete requestBody[key];
+				}
+			});
+
+			logger.debug('Perplexity API request', { model, params: requestBody });
+
+			const response = await requestUrl({
+				url: 'https://api.perplexity.ai/chat/completions',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${this.settings.perplexityApiKey}`
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			const duration = performanceMonitor.endTimer(operationId);
+			performanceMonitor.logMetrics('Perplexity Search', duration, {
+				queryLength: query.length,
+				model: model,
+				maxTokens: perplexityParams.max_tokens
+			});
+
+			if (response.status !== 200) {
+				throw new Error(`Perplexity API error: ${response.status} - ${response.text}`);
+			}
+
+			const result = response.json;
+			logger.debug('Perplexity search results received', { 
+				choices: result.choices?.length || 0,
+				model: result.model 
+			});
+
+			// Format results for Obsidian
+			let formattedResult = `# Perplexity Search Results\n\n**Query:** ${query}\n\n`;
+			formattedResult += `**Model:** ${result.model || model}\n\n`;
+
+			if (result.choices && result.choices.length > 0) {
+				const choice = result.choices[0];
+				
+				if (choice.message && choice.message.content) {
+					formattedResult += `## AI Response\n\n${choice.message.content}\n\n`;
+				}
+
+				// Include citations if available
+				if (choice.citations && choice.citations.length > 0) {
+					formattedResult += `## Sources\n\n`;
+					choice.citations.forEach((citation: any, index: number) => {
+						formattedResult += `${index + 1}. [${citation.title || citation.url}](${citation.url})\n`;
+					});
+					formattedResult += `\n`;
+				}
+
+				// Include related questions if available
+				if (choice.related_questions && choice.related_questions.length > 0) {
+					formattedResult += `## Related Questions\n\n`;
+					choice.related_questions.forEach((question: string) => {
+						formattedResult += `- ${question}\n`;
+					});
+					formattedResult += `\n`;
+				}
+			}
+
+			// Add usage statistics if available
+			if (result.usage) {
+				formattedResult += `## Usage Statistics\n\n`;
+				formattedResult += `- **Prompt Tokens:** ${result.usage.prompt_tokens || 'N/A'}\n`;
+				formattedResult += `- **Completion Tokens:** ${result.usage.completion_tokens || 'N/A'}\n`;
+				formattedResult += `- **Total Tokens:** ${result.usage.total_tokens || 'N/A'}\n\n`;
+			}
+
+			// Add metadata
+			formattedResult += `\n---\n*Search performed using Perplexity API (${model}) on ${new Date().toISOString()}*\n`;
+
+			logger.info('Perplexity search completed successfully', {
+				duration: duration,
+				model: result.model,
+				tokensUsed: result.usage?.total_tokens || 0
+			});
+
+			return formattedResult;
+
+		} catch (error) {
+			const duration = performanceMonitor.endTimer(operationId);
+			logger.error('Perplexity search failed', error);
+			
+			performanceMonitor.logMetrics('Perplexity Search (Failed)', duration, {
+				error: error.message,
+				queryLength: query.length
+			});
+
+			throw new Error(`Perplexity search failed: ${error.message}`);
+		}
 	}
 
 	async searchWithTavily(query: string): Promise<string> {
@@ -1321,8 +1621,122 @@ For additional context and verification:
 			throw new Error('Tavily API key not configured');
 		}
 
-		// Implementation here - simplified for now
-		return `Tavily search result for: ${query}`;
+		const logger = PluginLogger.getInstance();
+		const performanceMonitor = PerformanceMonitor.getInstance();
+		const operationId = `tavily-search-${Date.now()}`;
+		
+		try {
+			performanceMonitor.startTimer(operationId);
+			logger.debug('Starting Tavily search', { query });
+
+			// Prepare Tavily API request with actual parameters from API docs
+			const requestBody: Record<string, any> = {
+				api_key: this.settings.tavilyApiKey,
+				query: query,
+				search_depth: this.settings.tavilySearchDepth,
+				include_answer: this.settings.tavilyIncludeAnswer,
+				include_images: this.settings.tavilyIncludeImages,
+				include_raw_content: this.settings.tavilyIncludeRawContent,
+				max_results: this.settings.tavilyMaxResults,
+				include_domains: this.settings.tavilyIncludeDomains ? this.settings.tavilyIncludeDomains.split(',').map(d => d.trim()) : undefined,
+				exclude_domains: this.settings.tavilyExcludeDomains ? this.settings.tavilyExcludeDomains.split(',').map(d => d.trim()) : undefined,
+				topic: this.settings.tavilyTopic,
+				days: this.settings.tavilyDays
+			};
+
+			// Remove undefined fields to avoid API errors
+			Object.keys(requestBody).forEach(key => {
+				if (requestBody[key] === undefined) {
+					delete requestBody[key];
+				}
+			});
+
+			logger.debug('Tavily API request body', requestBody);
+
+			const response = await requestUrl({
+				url: 'https://api.tavily.com/search',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			const duration = performanceMonitor.endTimer(operationId);
+			performanceMonitor.logMetrics('Tavily Search', duration, {
+				queryLength: query.length,
+				maxResults: this.settings.tavilyMaxResults,
+				searchDepth: this.settings.tavilySearchDepth
+			});
+
+			if (response.status !== 200) {
+				throw new Error(`Tavily API error: ${response.status} - ${response.text}`);
+			}
+
+			const searchResults = response.json;
+			logger.debug('Tavily search results received', { 
+				resultsCount: searchResults.results?.length || 0,
+				hasAnswer: !!searchResults.answer 
+			});
+
+			// Format results for Obsidian
+			let formattedResult = `# Tavily Search Results\n\n**Query:** ${query}\n\n`;
+
+			// Include the AI-generated answer if available
+			if (searchResults.answer) {
+				formattedResult += `## AI Summary\n\n${searchResults.answer}\n\n`;
+			}
+
+			// Format search results
+			if (searchResults.results && searchResults.results.length > 0) {
+				formattedResult += `## Search Results\n\n`;
+				
+				searchResults.results.forEach((result: any, index: number) => {
+					formattedResult += `### ${index + 1}. ${result.title}\n\n`;
+					if (result.url) {
+						formattedResult += `**URL:** [${result.url}](${result.url})\n\n`;
+					}
+					if (result.content) {
+						formattedResult += `**Content:** ${result.content}\n\n`;
+					}
+					if (result.score) {
+						formattedResult += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%\n\n`;
+					}
+					formattedResult += `---\n\n`;
+				});
+			}
+
+			// Include images if requested and available
+			if (this.settings.tavilyIncludeImages && searchResults.images && searchResults.images.length > 0) {
+				formattedResult += `## Related Images\n\n`;
+				searchResults.images.forEach((image: any, index: number) => {
+					if (image.url) {
+						formattedResult += `![Image ${index + 1}](${image.url})\n\n`;
+					}
+				});
+			}
+
+			// Add metadata
+			formattedResult += `\n---\n*Search performed using Tavily API on ${new Date().toISOString()}*\n`;
+
+			logger.info('Tavily search completed successfully', {
+				resultsCount: searchResults.results?.length || 0,
+				duration: duration
+			});
+
+			return formattedResult;
+
+		} catch (error) {
+			const duration = performanceMonitor.endTimer(operationId);
+			logger.error('Tavily search failed', error);
+			
+			performanceMonitor.logMetrics('Tavily Search (Failed)', duration, {
+				error: error.message,
+				queryLength: query.length
+			});
+
+			throw new Error(`Tavily search failed: ${error.message}`);
+		}
 	}
 
 	async searchWithExa(query: string): Promise<string> {
@@ -1330,8 +1744,179 @@ For additional context and verification:
 			throw new Error('Exa API key not configured');
 		}
 
-		// Implementation here - simplified for now
-		return `Exa search result for: ${query}`;
+		const logger = PluginLogger.getInstance();
+		const performanceMonitor = PerformanceMonitor.getInstance();
+		const operationId = `exa-search-${Date.now()}`;
+		
+		try {
+			performanceMonitor.startTimer(operationId);
+			logger.debug('Starting Exa search', { query });
+
+			// Prepare Exa API request with actual parameters from API docs
+			const requestBody: Record<string, any> = {
+				query: query,
+				type: this.settings.exaSearchType,
+				numResults: this.settings.exaNumResults,
+				includeDomains: this.settings.exaIncludeDomains ? this.settings.exaIncludeDomains.split(',').map(d => d.trim()) : undefined,
+				excludeDomains: this.settings.exaExcludeDomains ? this.settings.exaExcludeDomains.split(',').map(d => d.trim()) : undefined,
+				startCrawlDate: this.settings.exaStartCrawlDate || undefined,
+				endCrawlDate: this.settings.exaEndCrawlDate || undefined,
+				startPublishedDate: this.settings.exaStartPublishedDate || undefined,
+				endPublishedDate: this.settings.exaEndPublishedDate || undefined,
+				category: this.settings.exaCategory || undefined,
+				useAutoprompt: this.settings.exaUseAutoprompt,
+				
+				// Content options
+				contents: {
+					text: this.settings.exaIncludeText,
+					highlights: this.settings.exaIncludeHighlights
+				}
+			};
+
+			// Remove undefined fields to avoid API errors
+			Object.keys(requestBody).forEach(key => {
+				if (requestBody[key] === undefined) {
+					delete requestBody[key];
+				}
+			});
+
+			// Clean up contents object
+			if (requestBody.contents) {
+				Object.keys(requestBody.contents).forEach(key => {
+					if (requestBody.contents[key] === undefined) {
+						delete requestBody.contents[key];
+					}
+				});
+				if (Object.keys(requestBody.contents).length === 0) {
+					delete requestBody.contents;
+				}
+			}
+
+			logger.debug('Exa API request body', requestBody);
+
+			const response = await requestUrl({
+				url: 'https://api.exa.ai/search',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': this.settings.exaApiKey
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			const duration = performanceMonitor.endTimer(operationId);
+			performanceMonitor.logMetrics('Exa Search', duration, {
+				queryLength: query.length,
+				numResults: this.settings.exaParams.numResults,
+				searchType: this.settings.exaParams.type
+			});
+
+			if (response.status !== 200) {
+				throw new Error(`Exa API error: ${response.status} - ${response.text}`);
+			}
+
+			const searchResults = response.json;
+			logger.debug('Exa search results received', { 
+				resultsCount: searchResults.results?.length || 0,
+				searchType: searchResults.resolvedSearchType
+			});
+
+			// Format results for Obsidian
+			let formattedResult = `# Exa Search Results\n\n**Query:** ${query}\n\n`;
+
+			if (searchResults.resolvedSearchType) {
+				formattedResult += `**Search Type:** ${searchResults.resolvedSearchType}\n\n`;
+			}
+
+			// Include context if available
+			if (searchResults.context) {
+				formattedResult += `## AI Context Summary\n\n${searchResults.context}\n\n`;
+			}
+
+			// Format search results
+			if (searchResults.results && searchResults.results.length > 0) {
+				formattedResult += `## Search Results\n\n`;
+				
+				searchResults.results.forEach((result: any, index: number) => {
+					formattedResult += `### ${index + 1}. ${result.title}\n\n`;
+					
+					if (result.url) {
+						formattedResult += `**URL:** [${result.url}](${result.url})\n\n`;
+					}
+					
+					if (result.author) {
+						formattedResult += `**Author:** ${result.author}\n\n`;
+					}
+					
+					if (result.publishedDate) {
+						const publishedDate = new Date(result.publishedDate).toLocaleDateString();
+						formattedResult += `**Published:** ${publishedDate}\n\n`;
+					}
+					
+					if (result.score) {
+						formattedResult += `**Relevance Score:** ${(result.score * 100).toFixed(1)}%\n\n`;
+					}
+
+					// Include content if available
+					if (result.text) {
+						formattedResult += `**Content:**\n${result.text}\n\n`;
+					}
+
+					// Include highlights if available
+					if (result.highlights && result.highlights.length > 0) {
+						formattedResult += `**Key Highlights:**\n`;
+						result.highlights.forEach((highlight: string) => {
+							formattedResult += `- ${highlight}\n`;
+						});
+						formattedResult += `\n`;
+					}
+
+					// Include summary if available
+					if (result.summary) {
+						formattedResult += `**Summary:** ${result.summary}\n\n`;
+					}
+
+					// Include subpages if available
+					if (result.subpages && result.subpages.length > 0) {
+						formattedResult += `**Related Pages:**\n`;
+						result.subpages.slice(0, 3).forEach((subpage: any) => {
+							formattedResult += `- [${subpage.title}](${subpage.url})\n`;
+						});
+						formattedResult += `\n`;
+					}
+
+					formattedResult += `---\n\n`;
+				});
+			}
+
+			// Add cost information if available
+			if (searchResults.costDollars) {
+				formattedResult += `## Search Cost\n\n`;
+				formattedResult += `**Total Cost:** $${searchResults.costDollars.total}\n\n`;
+			}
+
+			// Add metadata
+			formattedResult += `\n---\n*Search performed using Exa API on ${new Date().toISOString()}*\n`;
+
+			logger.info('Exa search completed successfully', {
+				resultsCount: searchResults.results?.length || 0,
+				duration: duration,
+				cost: searchResults.costDollars?.total || 0
+			});
+
+			return formattedResult;
+
+		} catch (error) {
+			const duration = performanceMonitor.endTimer(operationId);
+			logger.error('Exa search failed', error);
+			
+			performanceMonitor.logMetrics('Exa Search (Failed)', duration, {
+				error: error.message,
+				queryLength: query.length
+			});
+
+			throw new Error(`Exa search failed: ${error.message}`);
+		}
 	}
 
 	insertResult(result: string, mode: 'replace' | 'append') {
@@ -3019,11 +3604,140 @@ class GeminiSettingTab extends PluginSettingTab {
 	addGeminiAdvancedSettings(containerEl: HTMLElement) {
 		containerEl.createEl('h5', { text: 'Gemini Advanced Parameters' });
 		containerEl.createEl('p', { 
-			text: 'Configure advanced Gemini model parameters for fine-tuned responses.',
+			text: 'Configure advanced Gemini model parameters for fine-tuned responses. These settings affect all research modes.',
 			cls: 'settings-help-text'
 		});
-		
-		// Temperature, topP, topK, maxOutputTokens settings would go here
+
+		// Model Selection for Gemini
+		new Setting(containerEl)
+			.setName('Gemini Model')
+			.setDesc('Choose the Gemini model variant (affects cost and capabilities)')
+			.addDropdown(dropdown => dropdown
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Best quality, slower)')
+				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Balanced)')
+				.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Fastest, lowest cost)')
+				.setValue(this.plugin.settings.geminiModel || 'gemini-2.5-flash')
+				.onChange(async (value: string) => {
+					this.plugin.settings.geminiModel = value;
+					// Update all research mode configs
+					const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+					modes.forEach(mode => {
+						if (this.plugin.settings.researchModeConfigs[mode]) {
+							this.plugin.settings.researchModeConfigs[mode].geminiModel = value as any;
+						}
+					});
+					await this.plugin.saveSettings();
+				}));
+
+		// Temperature Slider
+		new Setting(containerEl)
+			.setName('Temperature')
+			.setDesc('Controls randomness: 0.0 = focused, 2.0 = creative (Default: 0.7)')
+			.addSlider(slider => slider
+				.setLimits(0, 200, 5) // 0-2.0 with 0.05 steps
+				.setValue((this.plugin.settings.researchModeConfigs.comprehensive.geminiParams.temperature || 0.7) * 100)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					const temperature = value / 100;
+					// Update all research mode configs
+					const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+					modes.forEach(mode => {
+						if (this.plugin.settings.researchModeConfigs[mode]?.geminiParams) {
+							this.plugin.settings.researchModeConfigs[mode].geminiParams.temperature = temperature;
+						}
+					});
+					await this.plugin.saveSettings();
+				}));
+
+		// Top P Slider  
+		new Setting(containerEl)
+			.setName('Top P (Nucleus Sampling)')
+			.setDesc('Cumulative probability cutoff: 0.1 = conservative, 1.0 = diverse (Default: 0.8)')
+			.addSlider(slider => slider
+				.setLimits(10, 100, 5) // 0.1-1.0 with 0.05 steps
+				.setValue((this.plugin.settings.researchModeConfigs.comprehensive.geminiParams.topP || 0.8) * 100)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					const topP = value / 100;
+					const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+					modes.forEach(mode => {
+						if (this.plugin.settings.researchModeConfigs[mode]?.geminiParams) {
+							this.plugin.settings.researchModeConfigs[mode].geminiParams.topP = topP;
+						}
+					});
+					await this.plugin.saveSettings();
+				}));
+
+		// Top K Slider
+		new Setting(containerEl)
+			.setName('Top K')
+			.setDesc('Limits vocabulary to top K tokens: 1 = restrictive, 100 = diverse (Default: 40)')
+			.addSlider(slider => slider
+				.setLimits(1, 100, 1)
+				.setValue(this.plugin.settings.researchModeConfigs.comprehensive.geminiParams.topK || 40)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+					modes.forEach(mode => {
+						if (this.plugin.settings.researchModeConfigs[mode]?.geminiParams) {
+							this.plugin.settings.researchModeConfigs[mode].geminiParams.topK = value;
+						}
+					});
+					await this.plugin.saveSettings();
+				}));
+
+		// Max Output Tokens
+		new Setting(containerEl)
+			.setName('Max Output Tokens')
+			.setDesc('Maximum response length: 256 = short, 8192 = very long (Default: 2048)')
+			.addSlider(slider => slider
+				.setLimits(256, 8192, 256)
+				.setValue(this.plugin.settings.researchModeConfigs.comprehensive.geminiParams.maxOutputTokens || 2048)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+					modes.forEach(mode => {
+						if (this.plugin.settings.researchModeConfigs[mode]?.geminiParams) {
+							this.plugin.settings.researchModeConfigs[mode].geminiParams.maxOutputTokens = value;
+						}
+					});
+					await this.plugin.saveSettings();
+				}));
+
+		// Safety Settings
+		containerEl.createEl('h6', { text: 'Content Safety Settings' });
+		containerEl.createEl('p', { 
+			text: 'Configure content filtering levels for different harm categories.',
+			cls: 'settings-help-text'
+		});
+
+		const safetyCategories = [
+			{ key: 'harassment', name: 'Harassment', desc: 'Malicious comments targeting identity/protected attributes' },
+			{ key: 'hateSpeech', name: 'Hate Speech', desc: 'Content that promotes hatred toward groups' },
+			{ key: 'sexuallyExplicit', name: 'Sexually Explicit', desc: 'Contains sexual or erotic content' },
+			{ key: 'dangerousContent', name: 'Dangerous Content', desc: 'Promotes harmful or illegal activities' }
+		];
+
+		safetyCategories.forEach(category => {
+			new Setting(containerEl)
+				.setName(category.name)
+				.setDesc(category.desc)
+				.addDropdown(dropdown => dropdown
+					.addOption('BLOCK_NONE', 'None - Allow all content')
+					.addOption('BLOCK_ONLY_HIGH', 'High - Block only high-confidence harmful content')
+					.addOption('BLOCK_MEDIUM_AND_ABOVE', 'Medium+ - Block medium and high harmful content (Default)')
+					.addOption('BLOCK_LOW_AND_ABOVE', 'Low+ - Block low, medium, and high harmful content')
+					.setValue(this.plugin.settings.researchModeConfigs.comprehensive.geminiSafety[category.key as keyof typeof this.plugin.settings.researchModeConfigs.comprehensive.geminiSafety] || 'BLOCK_MEDIUM_AND_ABOVE')
+					.onChange(async (value: any) => {
+						const modes = ['quick', 'comprehensive', 'deep', 'reasoning', 'youtube'] as const;
+						modes.forEach(mode => {
+							if (this.plugin.settings.researchModeConfigs[mode]?.geminiSafety) {
+								(this.plugin.settings.researchModeConfigs[mode].geminiSafety as any)[category.key] = value;
+							}
+						});
+						await this.plugin.saveSettings();
+					}));
+		});
 	}
 
 	addPerplexityAdvancedSettings(containerEl: HTMLElement) {
@@ -3032,13 +3746,490 @@ class GeminiSettingTab extends PluginSettingTab {
 			text: 'Control Perplexity search depth and response characteristics.',
 			cls: 'settings-help-text'
 		});
+
+		// Model selection
+		new Setting(containerEl)
+			.setName('Model')
+			.setDesc('Choose Perplexity AI model')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('llama-3.1-sonar-small-128k-online', 'Llama 3.1 Sonar Small (128k)')
+					.addOption('llama-3.1-sonar-large-128k-online', 'Llama 3.1 Sonar Large (128k)')
+					.addOption('llama-3.1-sonar-huge-128k-online', 'Llama 3.1 Sonar Huge (128k)')
+					.addOption('llama-3.1-70b-instruct', 'Llama 3.1 70B Instruct')
+					.addOption('llama-3.1-8b-instruct', 'Llama 3.1 8B Instruct')
+					.setValue(this.plugin.settings.perplexityModel || 'llama-3.1-sonar-small-128k-online')
+					.onChange(async (value) => {
+						this.plugin.settings.perplexityModel = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).perplexityModel = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Temperature setting
+		const tempContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const tempInfo = tempContainer.createEl('div', { cls: 'setting-item-info' });
+		tempInfo.createEl('div', { cls: 'setting-item-name', text: 'Temperature' });
+		const tempDesc = tempInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentTemp = (this.plugin.settings as any).perplexityTemperature || 0.2;
+		tempDesc.textContent = `Creativity level (0.0-2.0). Current: ${currentTemp}`;
+		
+		const tempControl = tempContainer.createEl('div', { cls: 'setting-item-control' });
+		const tempSlider = tempControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '0',
+				max: '2.0',
+				step: '0.1',
+				value: currentTemp.toString()
+			}
+		});
+		
+		tempSlider.addEventListener('input', async (e) => {
+			const value = parseFloat((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityTemperature = value;
+			tempDesc.textContent = `Creativity level (0.0-2.0). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityTemperature = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Max Tokens setting
+		const maxTokensContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const maxTokensInfo = maxTokensContainer.createEl('div', { cls: 'setting-item-info' });
+		maxTokensInfo.createEl('div', { cls: 'setting-item-name', text: 'Max Tokens' });
+		const maxTokensDesc = maxTokensInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentMaxTokens = (this.plugin.settings as any).perplexityMaxTokens || 1024;
+		maxTokensDesc.textContent = `Maximum response length (256-4096). Current: ${currentMaxTokens}`;
+		
+		const maxTokensControl = maxTokensContainer.createEl('div', { cls: 'setting-item-control' });
+		const maxTokensSlider = maxTokensControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '256',
+				max: '4096',
+				step: '64',
+				value: currentMaxTokens.toString()
+			}
+		});
+		
+		maxTokensSlider.addEventListener('input', async (e) => {
+			const value = parseInt((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityMaxTokens = value;
+			maxTokensDesc.textContent = `Maximum response length (256-4096). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityMaxTokens = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Top P setting
+		const topPContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const topPInfo = topPContainer.createEl('div', { cls: 'setting-item-info' });
+		topPInfo.createEl('div', { cls: 'setting-item-name', text: 'Top P' });
+		const topPDesc = topPInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentTopP = (this.plugin.settings as any).perplexityTopP || 1.0;
+		topPDesc.textContent = `Nucleus sampling (0.1-1.0). Current: ${currentTopP}`;
+		
+		const topPControl = topPContainer.createEl('div', { cls: 'setting-item-control' });
+		const topPSlider = topPControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '0.1',
+				max: '1.0',
+				step: '0.05',
+				value: currentTopP.toString()
+			}
+		});
+		
+		topPSlider.addEventListener('input', async (e) => {
+			const value = parseFloat((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityTopP = value;
+			topPDesc.textContent = `Nucleus sampling (0.1-1.0). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityTopP = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Top K setting  
+		const topKContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const topKInfo = topKContainer.createEl('div', { cls: 'setting-item-info' });
+		topKInfo.createEl('div', { cls: 'setting-item-name', text: 'Top K' });
+		const topKDesc = topKInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentTopK = (this.plugin.settings as any).perplexityTopK || 0;
+		topKDesc.textContent = `Vocabulary limitation (0-100). Current: ${currentTopK}`;
+		
+		const topKControl = topKContainer.createEl('div', { cls: 'setting-item-control' });
+		const topKSlider = topKControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '0',
+				max: '100',
+				step: '5',
+				value: currentTopK.toString()
+			}
+		});
+		
+		topKSlider.addEventListener('input', async (e) => {
+			const value = parseInt((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityTopK = value;
+			topKDesc.textContent = `Vocabulary limitation (0-100, 0=disabled). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityTopK = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Frequency Penalty setting
+		const freqPenaltyContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const freqPenaltyInfo = freqPenaltyContainer.createEl('div', { cls: 'setting-item-info' });
+		freqPenaltyInfo.createEl('div', { cls: 'setting-item-name', text: 'Frequency Penalty' });
+		const freqPenaltyDesc = freqPenaltyInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentFreqPenalty = (this.plugin.settings as any).perplexityFrequencyPenalty || 0;
+		freqPenaltyDesc.textContent = `Reduce repetition (-2.0 to 2.0). Current: ${currentFreqPenalty}`;
+		
+		const freqPenaltyControl = freqPenaltyContainer.createEl('div', { cls: 'setting-item-control' });
+		const freqPenaltySlider = freqPenaltyControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '-2.0',
+				max: '2.0',
+				step: '0.1',
+				value: currentFreqPenalty.toString()
+			}
+		});
+		
+		freqPenaltySlider.addEventListener('input', async (e) => {
+			const value = parseFloat((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityFrequencyPenalty = value;
+			freqPenaltyDesc.textContent = `Reduce repetition (-2.0 to 2.0). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityFrequencyPenalty = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Presence Penalty setting
+		const presencePenaltyContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const presencePenaltyInfo = presencePenaltyContainer.createEl('div', { cls: 'setting-item-info' });
+		presencePenaltyInfo.createEl('div', { cls: 'setting-item-name', text: 'Presence Penalty' });
+		const presencePenaltyDesc = presencePenaltyInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentPresencePenalty = (this.plugin.settings as any).perplexityPresencePenalty || 0;
+		presencePenaltyDesc.textContent = `Encourage new topics (-2.0 to 2.0). Current: ${currentPresencePenalty}`;
+		
+		const presencePenaltyControl = presencePenaltyContainer.createEl('div', { cls: 'setting-item-control' });
+		const presencePenaltySlider = presencePenaltyControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '-2.0',
+				max: '2.0',
+				step: '0.1',
+				value: currentPresencePenalty.toString()
+			}
+		});
+		
+		presencePenaltySlider.addEventListener('input', async (e) => {
+			const value = parseFloat((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).perplexityPresencePenalty = value;
+			presencePenaltyDesc.textContent = `Encourage new topics (-2.0 to 2.0). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).perplexityPresencePenalty = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Return citations toggle
+		new Setting(containerEl)
+			.setName('Return Citations')
+			.setDesc('Include source citations in responses')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).perplexityReturnCitations ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).perplexityReturnCitations = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).perplexityReturnCitations = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Return images toggle
+		new Setting(containerEl)
+			.setName('Return Images')
+			.setDesc('Include images in search results when available')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).perplexityReturnImages ?? false)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).perplexityReturnImages = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).perplexityReturnImages = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Return related questions toggle
+		new Setting(containerEl)
+			.setName('Return Related Questions')
+			.setDesc('Include suggested follow-up questions')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).perplexityReturnRelated ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).perplexityReturnRelated = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).perplexityReturnRelated = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Search domain time setting
+		new Setting(containerEl)
+			.setName('Search Domain Time')
+			.setDesc('Time range for search results')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('', 'No time limit')
+					.addOption('hour', 'Past hour')
+					.addOption('day', 'Past day')
+					.addOption('week', 'Past week')
+					.addOption('month', 'Past month')
+					.addOption('year', 'Past year')
+					.setValue((this.plugin.settings as any).perplexitySearchDomainFilter || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).perplexitySearchDomainFilter = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).perplexitySearchDomainFilter = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 
 	addTavilyAdvancedSettings(containerEl: HTMLElement) {
 		containerEl.createEl('h5', { text: 'Tavily Advanced Parameters' });
 		containerEl.createEl('p', { 
-			text: 'Tavily uses intelligent defaults. Additional customization options may be added in future updates.',
+			text: 'Configure Tavily search depth and result filtering options.',
 			cls: 'settings-help-text'
+		});
+
+		// Search depth setting
+		new Setting(containerEl)
+			.setName('Search Depth')
+			.setDesc('Depth of search results to retrieve')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('basic', 'Basic - Fast results')
+					.addOption('advanced', 'Advanced - Comprehensive results')
+					.setValue((this.plugin.settings as any).tavilySearchDepth || 'basic')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilySearchDepth = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilySearchDepth = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Max results setting
+		const maxResultsContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const maxResultsInfo = maxResultsContainer.createEl('div', { cls: 'setting-item-info' });
+		maxResultsInfo.createEl('div', { cls: 'setting-item-name', text: 'Max Results' });
+		const maxResultsDesc = maxResultsInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentMaxResults = (this.plugin.settings as any).tavilyMaxResults || 5;
+		maxResultsDesc.textContent = `Maximum number of results (1-20). Current: ${currentMaxResults}`;
+		
+		const maxResultsControl = maxResultsContainer.createEl('div', { cls: 'setting-item-control' });
+		const maxResultsSlider = maxResultsControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '1',
+				max: '20',
+				step: '1',
+				value: currentMaxResults.toString()
+			}
+		});
+		
+		maxResultsSlider.addEventListener('input', async (e) => {
+			const value = parseInt((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).tavilyMaxResults = value;
+			maxResultsDesc.textContent = `Maximum number of results (1-20). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).tavilyMaxResults = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Include domains setting
+		new Setting(containerEl)
+			.setName('Include Domains')
+			.setDesc('Comma-separated list of domains to include (e.g., wikipedia.org, reddit.com)')
+			.addTextArea(text => {
+				text
+					.setPlaceholder('Enter domains to include...')
+					.setValue((this.plugin.settings as any).tavilyIncludeDomains || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyIncludeDomains = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyIncludeDomains = value;
+						});
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.rows = 2;
+			});
+
+		// Exclude domains setting
+		new Setting(containerEl)
+			.setName('Exclude Domains')
+			.setDesc('Comma-separated list of domains to exclude (e.g., ads.com, spam.com)')
+			.addTextArea(text => {
+				text
+					.setPlaceholder('Enter domains to exclude...')
+					.setValue((this.plugin.settings as any).tavilyExcludeDomains || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyExcludeDomains = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyExcludeDomains = value;
+						});
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.rows = 2;
+			});
+
+		// Include answer toggle
+		new Setting(containerEl)
+			.setName('Include Answer')
+			.setDesc('Include a direct answer in addition to search results')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).tavilyIncludeAnswer ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyIncludeAnswer = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyIncludeAnswer = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Include raw content toggle
+		new Setting(containerEl)
+			.setName('Include Raw Content')
+			.setDesc('Include the raw HTML content of search results')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).tavilyIncludeRawContent ?? false)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyIncludeRawContent = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyIncludeRawContent = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Include images toggle
+		new Setting(containerEl)
+			.setName('Include Images')
+			.setDesc('Include images in search results when available')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).tavilyIncludeImages ?? false)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyIncludeImages = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyIncludeImages = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Topic setting
+		new Setting(containerEl)
+			.setName('Topic')
+			.setDesc('Topic category for search context (general, news, etc.)')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('general', 'General')
+					.addOption('news', 'News')
+					.addOption('science', 'Science')
+					.addOption('technology', 'Technology')
+					.addOption('business', 'Business')
+					.addOption('health', 'Health')
+					.addOption('entertainment', 'Entertainment')
+					.addOption('sports', 'Sports')
+					.setValue((this.plugin.settings as any).tavilyTopic || 'general')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).tavilyTopic = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).tavilyTopic = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Days setting for recent content
+		const daysContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const daysInfo = daysContainer.createEl('div', { cls: 'setting-item-info' });
+		daysInfo.createEl('div', { cls: 'setting-item-name', text: 'Recent Content Days' });
+		const daysDesc = daysInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentDays = (this.plugin.settings as any).tavilyDays || 0;
+		daysDesc.textContent = `Limit to content from last N days (0=no limit). Current: ${currentDays}`;
+		
+		const daysControl = daysContainer.createEl('div', { cls: 'setting-item-control' });
+		const daysSlider = daysControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '0',
+				max: '365',
+				step: '1',
+				value: currentDays.toString()
+			}
+		});
+		
+		daysSlider.addEventListener('input', async (e) => {
+			const value = parseInt((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).tavilyDays = value;
+			daysDesc.textContent = `Limit to content from last N days (0=no limit). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).tavilyDays = value;
+			});
+			await this.plugin.saveSettings();
 		});
 	}
 
@@ -3048,5 +4239,244 @@ class GeminiSettingTab extends PluginSettingTab {
 			text: 'Exa offers the most customization options for semantic search and content filtering.',
 			cls: 'settings-help-text'
 		});
+
+		// Search type setting
+		new Setting(containerEl)
+			.setName('Search Type')
+			.setDesc('Type of search to perform')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('neural', 'Neural - Semantic understanding')
+					.addOption('keyword', 'Keyword - Traditional search')
+					.addOption('auto', 'Auto - Best of both')
+					.setValue((this.plugin.settings as any).exaSearchType || 'neural')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaSearchType = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaSearchType = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Use autoprompt toggle
+		new Setting(containerEl)
+			.setName('Use Autoprompt')
+			.setDesc('Automatically enhance queries for better results')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).exaUseAutoprompt ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaUseAutoprompt = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaUseAutoprompt = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Category setting
+		new Setting(containerEl)
+			.setName('Category')
+			.setDesc('Content category to focus search on')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('', 'Any category')
+					.addOption('company', 'Company')
+					.addOption('research paper', 'Research Paper')
+					.addOption('news', 'News')
+					.addOption('github', 'GitHub')
+					.addOption('tweet', 'Tweet')
+					.addOption('movie', 'Movie')
+					.addOption('song', 'Song')
+					.addOption('personal site', 'Personal Site')
+					.addOption('pdf', 'PDF Document')
+					.setValue((this.plugin.settings as any).exaCategory || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaCategory = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaCategory = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Number of results setting
+		const numResultsContainer = containerEl.createEl('div', { cls: 'setting-item' });
+		const numResultsInfo = numResultsContainer.createEl('div', { cls: 'setting-item-info' });
+		numResultsInfo.createEl('div', { cls: 'setting-item-name', text: 'Number of Results' });
+		const numResultsDesc = numResultsInfo.createEl('div', { cls: 'setting-item-description' });
+		const currentNumResults = (this.plugin.settings as any).exaNumResults || 10;
+		numResultsDesc.textContent = `Number of results to return (1-20). Current: ${currentNumResults}`;
+		
+		const numResultsControl = numResultsContainer.createEl('div', { cls: 'setting-item-control' });
+		const numResultsSlider = numResultsControl.createEl('input', {
+			type: 'range',
+			cls: 'slider',
+			attr: {
+				min: '1',
+				max: '20',
+				step: '1',
+				value: currentNumResults.toString()
+			}
+		});
+		
+		numResultsSlider.addEventListener('input', async (e) => {
+			const value = parseInt((e.target as HTMLInputElement).value);
+			(this.plugin.settings as any).exaNumResults = value;
+			numResultsDesc.textContent = `Number of results to return (1-20). Current: ${value}`;
+			// Update all research mode configs
+			(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+				(this.plugin.settings.researchModeConfigs[mode] as any).exaNumResults = value;
+			});
+			await this.plugin.saveSettings();
+		});
+
+		// Include domains setting
+		new Setting(containerEl)
+			.setName('Include Domains')
+			.setDesc('Comma-separated list of domains to include (e.g., wikipedia.org, arxiv.org)')
+			.addTextArea(text => {
+				text
+					.setPlaceholder('Enter domains to include...')
+					.setValue((this.plugin.settings as any).exaIncludeDomains || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaIncludeDomains = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaIncludeDomains = value;
+						});
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.rows = 2;
+			});
+
+		// Exclude domains setting
+		new Setting(containerEl)
+			.setName('Exclude Domains')
+			.setDesc('Comma-separated list of domains to exclude (e.g., pinterest.com, quora.com)')
+			.addTextArea(text => {
+				text
+					.setPlaceholder('Enter domains to exclude...')
+					.setValue((this.plugin.settings as any).exaExcludeDomains || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaExcludeDomains = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaExcludeDomains = value;
+						});
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.rows = 2;
+			});
+
+		// Start crawl date setting
+		new Setting(containerEl)
+			.setName('Start Crawl Date')
+			.setDesc('Only include results crawled after this date (YYYY-MM-DD format)')
+			.addText(text => {
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue((this.plugin.settings as any).exaStartCrawlDate || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaStartCrawlDate = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaStartCrawlDate = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// End crawl date setting
+		new Setting(containerEl)
+			.setName('End Crawl Date')
+			.setDesc('Only include results crawled before this date (YYYY-MM-DD format)')
+			.addText(text => {
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue((this.plugin.settings as any).exaEndCrawlDate || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaEndCrawlDate = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaEndCrawlDate = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Start published date setting
+		new Setting(containerEl)
+			.setName('Start Published Date')
+			.setDesc('Only include results published after this date (YYYY-MM-DD format)')
+			.addText(text => {
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue((this.plugin.settings as any).exaStartPublishedDate || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaStartPublishedDate = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaStartPublishedDate = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// End published date setting
+		new Setting(containerEl)
+			.setName('End Published Date')
+			.setDesc('Only include results published before this date (YYYY-MM-DD format)')
+			.addText(text => {
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue((this.plugin.settings as any).exaEndPublishedDate || '')
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaEndPublishedDate = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaEndPublishedDate = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Include domains toggle
+		new Setting(containerEl)
+			.setName('Include Text')
+			.setDesc('Include the text content of search results')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).exaIncludeText ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaIncludeText = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaIncludeText = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Include highlights toggle
+		new Setting(containerEl)
+			.setName('Include Highlights')
+			.setDesc('Include highlighted relevant excerpts from results')
+			.addToggle(toggle => {
+				toggle
+					.setValue((this.plugin.settings as any).exaIncludeHighlights ?? true)
+					.onChange(async (value) => {
+						(this.plugin.settings as any).exaIncludeHighlights = value;
+						// Update all research mode configs
+						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
+							(this.plugin.settings.researchModeConfigs[mode] as any).exaIncludeHighlights = value;
+						});
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }
