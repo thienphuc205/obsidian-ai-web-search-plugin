@@ -204,19 +204,14 @@ interface GeminiWebSearchSettings {
 				temperature: number; // 0.0-2.0
 				max_tokens: number; // model-dependent
 				top_p: number; // 0.0-1.0
-				top_k: number; // 0-2048
-				frequency_penalty: number; // -2.0 to 2.0
-				presence_penalty: number; // -2.0 to 2.0
 				stream: boolean;
 				
 				// Search-specific parameters
 				search_domain_filter: string[]; // Allow/deny domains
 				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
-				search_mode: 'web' | 'academic';
 				return_related_questions: boolean;
 				return_citations: boolean;
 				return_images: boolean;
-				search_context_size: number; // Number of search results to use
 			};
 		};
 		comprehensive: {
@@ -242,17 +237,12 @@ interface GeminiWebSearchSettings {
 				temperature: number;
 				max_tokens: number;
 				top_p: number;
-				top_k: number;
-				frequency_penalty: number;
-				presence_penalty: number;
 				stream: boolean;
 				search_domain_filter: string[];
 				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
-				search_mode: 'web' | 'academic';
 				return_related_questions: boolean;
 				return_citations: boolean;
 				return_images: boolean;
-				search_context_size: number;
 			};
 		};
 		deep: {
@@ -278,17 +268,12 @@ interface GeminiWebSearchSettings {
 				temperature: number;
 				max_tokens: number;
 				top_p: number;
-				top_k: number;
-				frequency_penalty: number;
-				presence_penalty: number;
 				stream: boolean;
 				search_domain_filter: string[];
 				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
-				search_mode: 'web' | 'academic';
 				return_related_questions: boolean;
 				return_citations: boolean;
 				return_images: boolean;
-				search_context_size: number;
 			};
 		};
 		reasoning: {
@@ -314,17 +299,12 @@ interface GeminiWebSearchSettings {
 				temperature: number;
 				max_tokens: number;
 				top_p: number;
-				top_k: number;
-				frequency_penalty: number;
-				presence_penalty: number;
 				stream: boolean;
 				search_domain_filter: string[];
 				search_recency_filter: 'month' | 'week' | 'day' | 'hour' | null;
-				search_mode: 'web' | 'academic';
 				return_related_questions: boolean;
 				return_citations: boolean;
 				return_images: boolean;
-				search_context_size: number;
 			};
 		};
 		youtube: {
@@ -519,17 +499,12 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 				temperature: 0.4,
 				max_tokens: 800,
 				top_p: 0.7,
-				top_k: 20,
-				frequency_penalty: 0.0,
-				presence_penalty: 0.0,
 				stream: false,
 				search_domain_filter: [],
 				search_recency_filter: 'day',
-				search_mode: 'web',
 				return_related_questions: false,
 				return_citations: true,
-				return_images: false,
-				search_context_size: 3
+				return_images: false
 			}
 		},
 		comprehensive: {
@@ -555,17 +530,12 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 				temperature: 0.6,
 				max_tokens: 2000,
 				top_p: 0.8,
-				top_k: 40,
-				frequency_penalty: 0.1,
-				presence_penalty: 0.1,
 				stream: false,
 				search_domain_filter: [],
 				search_recency_filter: 'week',
-				search_mode: 'web',
 				return_related_questions: true,
 				return_citations: true,
-				return_images: true,
-				search_context_size: 8
+				return_images: true
 			}
 		},
 		deep: {
@@ -591,22 +561,17 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 				temperature: 0.7,
 				max_tokens: 4000,
 				top_p: 0.9,
-				top_k: 60,
-				frequency_penalty: 0.2,
-				presence_penalty: 0.2,
 				stream: false,
 				search_domain_filter: [],
 				search_recency_filter: 'month',
-				search_mode: 'academic',
 				return_related_questions: true,
 				return_citations: true,
-				return_images: true,
-				search_context_size: 12
+				return_images: true
 			}
 		},
 		reasoning: {
 			geminiModel: 'gemini-2.5-pro',
-			perplexityModel: 'sonar-reasoning-pro',
+			perplexityModel: 'sonar-reasoning',
 			geminiParams: {
 				temperature: 0.3,
 				topP: 0.6,
@@ -627,17 +592,12 @@ const DEFAULT_SETTINGS: GeminiWebSearchSettings = {
 				temperature: 0.2,
 				max_tokens: 3000,
 				top_p: 0.6,
-				top_k: 20,
-				frequency_penalty: 0.0,
-				presence_penalty: 0.0,
 				stream: false,
 				search_domain_filter: [],
 				search_recency_filter: 'month',
-				search_mode: 'web',
 				return_related_questions: false,
 				return_citations: true,
-				return_images: false,
-				search_context_size: 10
+				return_images: false
 			}
 		},
 		youtube: {
@@ -1471,6 +1431,11 @@ For additional context and verification:
 			throw new Error('Perplexity API key not configured');
 		}
 
+		// Validate API key format
+		if (!this.settings.perplexityApiKey.startsWith('pplx-')) {
+			throw new Error('Invalid Perplexity API key format. Must start with "pplx-"');
+		}
+
 		const logger = PluginLogger.getInstance();
 		const performanceMonitor = PerformanceMonitor.getInstance();
 		const operationId = `perplexity-search-${Date.now()}`;
@@ -1493,7 +1458,36 @@ For additional context and verification:
 				model = this.settings.researchModeConfigs[currentMode].perplexityModel;
 			}
 
-			// Prepare Perplexity API request
+			// MIGRATION: Update old model names to new ones
+			const modelMigration: Record<string, string> = {
+				'llama-3.1-sonar-small-128k-online': 'sonar',
+				'llama-3.1-sonar-large-128k-online': 'sonar-pro',
+				'llama-3.1-sonar-huge-128k-online': 'sonar-pro',
+				'llama-3.1-70b-instruct': 'sonar-reasoning',
+				'llama-3.1-8b-instruct': 'sonar'
+			};
+
+			if (modelMigration[model]) {
+				logger.info(`Migrating old model ${model} to ${modelMigration[model]}`);
+				model = modelMigration[model];
+				
+				// Update the settings to avoid future migration
+				if (currentMode === 'youtube') {
+					this.settings.researchModeConfigs.comprehensive.perplexityModel = model as any;
+				} else {
+					(this.settings.researchModeConfigs[currentMode] as any).perplexityModel = model;
+				}
+				await this.saveSettings();
+			}
+
+			// Validate model name
+			const validModels = ['sonar', 'sonar-pro', 'sonar-reasoning', 'sonar-reasoning-pro', 'sonar-deep-research'];
+			if (!validModels.includes(model)) {
+				logger.warn(`Invalid model ${model}, falling back to sonar`);
+				model = 'sonar';
+			}
+
+			// Prepare Perplexity API request - simplified for debugging
 			const requestBody: Record<string, any> = {
 				model: model,
 				messages: [
@@ -1502,21 +1496,19 @@ For additional context and verification:
 						content: query
 					}
 				],
-				temperature: perplexityParams.temperature,
-				max_tokens: perplexityParams.max_tokens,
-				top_p: perplexityParams.top_p,
-				top_k: perplexityParams.top_k,
-				frequency_penalty: perplexityParams.frequency_penalty,
-				presence_penalty: perplexityParams.presence_penalty,
-				stream: false, // We'll handle non-streaming for simplicity
-				
-				// Perplexity-specific search parameters
-				search_domain_filter: perplexityParams.search_domain_filter.length > 0 ? perplexityParams.search_domain_filter : undefined,
-				search_recency_filter: perplexityParams.search_recency_filter,
-				return_related_questions: perplexityParams.return_related_questions,
-				return_citations: perplexityParams.return_citations,
-				return_images: perplexityParams.return_images
+				max_tokens: perplexityParams.max_tokens || 1000,
+				temperature: perplexityParams.temperature || 0.7,
+				return_citations: true,
+				return_related_questions: false,
+				return_images: false
 			};
+
+			logger.debug('Perplexity API request details', { 
+				model, 
+				currentMode,
+				params: requestBody,
+				apiKeyPrefix: this.settings.perplexityApiKey.substring(0, 8) + '...'
+			});
 
 			// Remove undefined fields
 			Object.keys(requestBody).forEach(key => {
@@ -1545,7 +1537,13 @@ For additional context and verification:
 			});
 
 			if (response.status !== 200) {
-				throw new Error(`Perplexity API error: ${response.status} - ${response.text}`);
+				logger.error('Perplexity API error', { 
+					status: response.status, 
+					statusText: response.text,
+					headers: response.headers,
+					requestBody: requestBody
+				});
+				throw new Error(`Perplexity search failed: Request failed, status ${response.status}. Response: ${response.text}`);
 			}
 
 			const result = response.json;
@@ -2056,6 +2054,36 @@ For additional context and verification:
 			outline-offset: 2px;
 		}
 		
+		/* Model Selection Container */
+		.model-container {
+			display: flex;
+			align-items: center;
+			gap: var(--size-2-2);
+			margin-left: var(--size-4-2);
+		}
+		
+		.model-label {
+			font-size: var(--font-ui-small);
+			color: var(--text-muted);
+			font-weight: var(--font-weight-medium);
+		}
+		
+		.model-dropdown {
+			padding: var(--size-2-1) var(--size-2-3);
+			background: var(--background-primary);
+			border: 1px solid var(--background-modifier-border);
+			border-radius: var(--radius-s);
+			color: var(--text-normal);
+			font-size: var(--font-ui-small);
+			min-width: 200px;
+			cursor: pointer;
+		}
+		
+		.model-dropdown:focus {
+			outline: 2px solid var(--interactive-accent);
+			outline-offset: 2px;
+		}
+		
 		/* Messages Container - Responsive and scrollable */
 		.gemini-chat-messages {
 			flex: 1;
@@ -2418,6 +2446,18 @@ For additional context and verification:
 			
 			.provider-container {
 				justify-content: center;
+				flex-direction: column;
+				align-items: stretch;
+			}
+			
+			.model-container {
+				margin-left: 0;
+				margin-top: var(--size-2-2);
+			}
+			
+			.provider-dropdown,
+			.model-dropdown {
+				width: 100%;
 			}
 			
 			.message.user {
@@ -2591,6 +2631,43 @@ export class GeminiChatView extends ItemView {
 
 		// Set current value
 		providerDropdown.value = this.plugin.settings.provider;
+
+		// NEW: Model selection container
+		const modelContainer = header.createEl('div', { cls: 'model-container' });
+		modelContainer.createEl('span', { 
+			text: 'Model: ',
+			cls: 'model-label'
+		});
+		
+		const modelDropdown = modelContainer.createEl('select', { cls: 'model-dropdown' });
+		
+		// Initialize model dropdown based on current provider
+		this.updateModelDropdown(modelDropdown, this.plugin.settings.provider);
+
+		// Provider change handler
+		providerDropdown.addEventListener('change', async (e) => {
+			const newProvider = (e.target as HTMLSelectElement).value as 'gemini' | 'perplexity' | 'tavily' | 'exa';
+			this.plugin.settings.provider = newProvider;
+			
+			// Update model dropdown for new provider
+			this.updateModelDropdown(modelDropdown, newProvider);
+			
+			// Handle special cases (YouTube mode)
+			if (this.currentResearchMode?.id === 'youtube' && newProvider !== 'gemini') {
+				new Notice('⚠️ YouTube mode requires Gemini provider');
+				providerDropdown.value = 'gemini';
+				this.plugin.settings.provider = 'gemini';
+				this.updateModelDropdown(modelDropdown, 'gemini');
+			}
+			
+			await this.plugin.saveSettings();
+		});
+		
+		// Model change handler
+		modelDropdown.addEventListener('change', async (e) => {
+			const selectedModel = (e.target as HTMLSelectElement).value;
+			await this.updateModelForCurrentMode(selectedModel);
+		});
 
 		// Message Container
 		this.messageContainer = container.createEl('div', { cls: 'gemini-chat-messages' });
@@ -2902,6 +2979,12 @@ export class GeminiChatView extends ItemView {
 	setResearchMode(mode: {id: string, label: string, description: string, model: string, perplexityModel: string, exaSearchType: 'auto' | 'neural' | 'keyword' | 'fast', exaCategory: string, providerLock?: string, requiresUrl?: boolean}) {
 		this.currentResearchMode = mode;
 		
+		// Update model dropdown when research mode changes
+		const modelDropdown = this.containerEl.querySelector('.model-dropdown') as HTMLSelectElement;
+		if (modelDropdown) {
+			this.updateModelDropdown(modelDropdown, this.plugin.settings.provider);
+		}
+		
 		// Handle YouTube mode special requirements
 		if (mode.id === 'youtube') {
 			// Force switch to Gemini provider if not already
@@ -2913,6 +2996,11 @@ export class GeminiChatView extends ItemView {
 				const providerDropdown = this.containerEl.querySelector('.provider-dropdown') as HTMLSelectElement;
 				if (providerDropdown) {
 					providerDropdown.value = 'gemini';
+				}
+				
+				// Update model dropdown after provider change
+				if (modelDropdown) {
+					this.updateModelDropdown(modelDropdown, 'gemini');
 				}
 				
 				new Notice('🎬 Switched to Gemini provider for YouTube video analysis');
@@ -2937,6 +3025,113 @@ export class GeminiChatView extends ItemView {
 		
 		// Add system message about mode change
 		this.addMessage('system', `Research mode set to ${mode.label}: ${mode.description}`);
+	}
+
+	// NEW: Update model dropdown based on provider and research mode
+	updateModelDropdown(dropdown: HTMLSelectElement, provider: string) {
+		dropdown.empty();
+		
+		const modelOptions = this.getAvailableModels(provider, this.currentResearchMode?.id);
+		
+		modelOptions.forEach(model => {
+			const option = dropdown.createEl('option', { 
+				value: model.id, 
+				text: model.displayName 
+			});
+			
+			// Set current selected model
+			if (this.isCurrentModel(model.id, provider)) {
+				option.selected = true;
+			}
+		});
+	}
+
+	// NEW: Get available models for provider + research mode
+	getAvailableModels(provider: string, researchMode?: string) {
+		const models: Array<{id: string, displayName: string, compatible: string[]}> = [];
+		
+		switch (provider) {
+			case 'gemini':
+				models.push(
+					{ id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro (Best Quality)', compatible: ['comprehensive', 'deep', 'reasoning', 'youtube'] },
+					{ id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash (Balanced)', compatible: ['quick', 'comprehensive', 'deep'] },
+					{ id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite (Fastest)', compatible: ['quick'] }
+				);
+				break;
+				
+		case 'perplexity':
+			models.push(
+				{ id: 'sonar-reasoning-pro', displayName: 'Sonar Reasoning Pro (Advanced)', compatible: ['reasoning', 'deep'] },
+				{ id: 'sonar-pro', displayName: 'Sonar Pro (Advanced Search)', compatible: ['comprehensive', 'deep'] },
+				{ id: 'sonar', displayName: 'Sonar (Standard)', compatible: ['quick', 'comprehensive'] },
+				{ id: 'sonar-deep-research', displayName: 'Sonar Deep Research (Exhaustive)', compatible: ['deep'] },
+				{ id: 'sonar-reasoning', displayName: 'Sonar Reasoning (Fast)', compatible: ['reasoning'] }
+			);
+			break;			case 'tavily':
+				// Tavily doesn't have model selection, just search depth
+				models.push({ id: 'tavily-search', displayName: 'Tavily Search', compatible: ['quick', 'comprehensive', 'deep'] });
+				break;
+				
+			case 'exa':
+				// Exa uses search types instead of models
+				models.push({ id: 'exa-neural', displayName: 'Neural Search', compatible: ['comprehensive', 'deep', 'reasoning'] });
+				break;
+		}
+		
+		// Filter by research mode compatibility
+		if (researchMode) {
+			return models.filter(model => model.compatible.includes(researchMode));
+		}
+		
+		return models;
+	}
+
+	// NEW: Check if model is currently selected
+	isCurrentModel(modelId: string, provider: string): boolean {
+		const mode = this.currentResearchMode?.id;
+		if (!mode) return false;
+		
+		const modeConfig = this.plugin.settings.researchModeConfigs[mode as keyof GeminiWebSearchSettings['researchModeConfigs']];
+		
+		switch (provider) {
+			case 'gemini':
+				return modeConfig.geminiModel === modelId;
+			case 'perplexity':
+				return (modeConfig as any).perplexityModel === modelId;
+			default:
+				return false;
+		}
+	}
+
+	// NEW: Update model for current research mode
+	async updateModelForCurrentMode(modelId: string) {
+		const provider = this.plugin.settings.provider;
+		const mode = this.currentResearchMode?.id;
+		
+		if (!mode) return;
+		
+		// Validate model compatibility
+		const availableModels = this.getAvailableModels(provider, mode);
+		const selectedModel = availableModels.find(m => m.id === modelId);
+		
+		if (!selectedModel) {
+			new Notice(`⚠️ Model ${modelId} not compatible with ${mode} mode`);
+			return;
+		}
+		
+		// Update research mode config
+		const modeKey = mode as keyof GeminiWebSearchSettings['researchModeConfigs'];
+		switch (provider) {
+			case 'gemini':
+				this.plugin.settings.researchModeConfigs[modeKey].geminiModel = modelId as any;
+				break;
+			case 'perplexity':
+				(this.plugin.settings.researchModeConfigs[modeKey] as any).perplexityModel = modelId;
+				break;
+		}
+		
+		await this.plugin.saveSettings();
+		new Notice(`✅ Updated ${mode} mode to use ${selectedModel.displayName}`);
 	}
 
 	addMessage(role: 'user' | 'assistant' | 'system', content: string, isThinking: boolean = false): string {
@@ -3636,9 +3831,9 @@ class GeminiSettingTab extends PluginSettingTab {
 			.setName('Gemini Model')
 			.setDesc('Choose the Gemini model variant (affects cost and capabilities)')
 			.addDropdown(dropdown => dropdown
-				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Best quality, slower)')
+				.addOption('gemini-2.5-pro', 'Gemini 2.5 Pro (Best Quality)')
 				.addOption('gemini-2.5-flash', 'Gemini 2.5 Flash (Balanced)')
-				.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Fastest, lowest cost)')
+				.addOption('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite (Fastest)')
 				.setValue(this.plugin.settings.geminiModel || 'gemini-2.5-flash')
 				.onChange(async (value: string) => {
 					this.plugin.settings.geminiModel = value;
@@ -3772,21 +3967,23 @@ class GeminiSettingTab extends PluginSettingTab {
 
 		// Model selection
 		new Setting(containerEl)
-			.setName('Model')
+			.setName('Perplexity Model')
 			.setDesc('Choose Perplexity AI model')
 			.addDropdown(dropdown => {
 				dropdown
-					.addOption('llama-3.1-sonar-small-128k-online', 'Llama 3.1 Sonar Small (128k)')
-					.addOption('llama-3.1-sonar-large-128k-online', 'Llama 3.1 Sonar Large (128k)')
-					.addOption('llama-3.1-sonar-huge-128k-online', 'Llama 3.1 Sonar Huge (128k)')
-					.addOption('llama-3.1-70b-instruct', 'Llama 3.1 70B Instruct')
-					.addOption('llama-3.1-8b-instruct', 'Llama 3.1 8B Instruct')
-					.setValue(this.plugin.settings.perplexityModel || 'llama-3.1-sonar-small-128k-online')
+					.addOption('sonar-reasoning-pro', 'Sonar Reasoning Pro (Advanced)')
+					.addOption('sonar-pro', 'Sonar Pro (Advanced Search)')
+					.addOption('sonar', 'Sonar (Standard)')
+					.addOption('sonar-deep-research', 'Sonar Deep Research (Exhaustive)')
+					.addOption('sonar-reasoning', 'Sonar Reasoning (Fast)')
+					.setValue(this.plugin.settings.perplexityModel || 'sonar-pro')
 					.onChange(async (value) => {
 						this.plugin.settings.perplexityModel = value;
 						// Update all research mode configs
 						(Object.keys(this.plugin.settings.researchModeConfigs) as Array<keyof typeof this.plugin.settings.researchModeConfigs>).forEach(mode => {
-							(this.plugin.settings.researchModeConfigs[mode] as any).perplexityModel = value;
+							if ((this.plugin.settings.researchModeConfigs[mode] as any).perplexityModel) {
+								(this.plugin.settings.researchModeConfigs[mode] as any).perplexityModel = value;
+							}
 						});
 						await this.plugin.saveSettings();
 					});
